@@ -1,0 +1,5 @@
+*.user
+*.glsl_dbg
+/build
+glslang
+SPIRV-Cross

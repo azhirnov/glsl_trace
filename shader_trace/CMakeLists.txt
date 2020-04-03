@@ -5,7 +5,7 @@ add_library( "ShaderTrace" STATIC ${SOURCES} )
 source_group( TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES} )
 target_include_directories( "ShaderTrace" PUBLIC "." )
 set_property( TARGET "ShaderTrace" PROPERTY FOLDER "" )
-target_link_libraries( "ShaderTrace" PUBLIC "STL" )
+target_link_libraries( "ShaderTrace" PUBLIC "ProjectTemplate" )
 target_link_libraries( "ShaderTrace" PUBLIC "GLSLang-lib" )
 
 install( TARGETS "ShaderTrace" ARCHIVE DESTINATION "libs/$<CONFIG>" )
