@@ -24,7 +24,7 @@ using namespace glslang;
 	CreateShader
 =================================================
 */
-bool CreateShader (OUT GLuint &			shader,
+bool CreateShader (OUT GLuint &			result,
 				   OUT ShaderTrace*		dbgInfo,
 				   GLenum				shaderType,
 				   const char *			inSource,
@@ -50,7 +50,7 @@ bool CreateShader (OUT GLuint &			shader,
 	
 	CHECK_ERR( CompileGLSL( OUT src, OUT dbgInfo, {header.c_str(), inSource}, sh_lang, mode ));
 
-	shader = glCreateShader( shaderType );
+	GLuint	shader = glCreateShader( shaderType );
 
 	inSource = src.c_str();
 	glShaderSource( shader, 1, &inSource, nullptr );
@@ -63,9 +63,32 @@ bool CreateShader (OUT GLuint &			shader,
 	{
 		GLchar	buf[1024] = {};
 		glGetShaderInfoLog( shader, sizeof(buf), nullptr, buf );
+		glDeleteShader( shader );
 
 		RETURN_ERR( "shader compilation failed" );
 	}
+
+	GLuint	prog = glCreateProgram();
+	glAttachShader( prog, shader );
+
+	glProgramParameteri( prog, GL_PROGRAM_SEPARABLE, GL_TRUE );
+	glLinkProgram( prog );
+	glGetProgramiv( prog, GL_LINK_STATUS, OUT &status );
+
+	if ( status != GL_TRUE )
+	{
+		GLchar	buf[1024] = {};
+		glGetProgramInfoLog( prog, sizeof(buf), nullptr, buf );
+		
+		glDeleteShader( shader );
+		glDeleteProgram( prog );
+
+		RETURN_ERR( "failed to link program" );
+	}
+	
+	glDeleteShader( shader );
+	
+	result = prog;
 	return true;
 }
 
@@ -90,6 +113,8 @@ bool CompileGLSL (OUT std::string&				glslResult,
 	shader.setEnvInput( EShSourceGlsl, shaderType, EShClientOpenGL, 110 );
 	shader.setEnvClient( EShClientOpenGL, EShTargetOpenGL_450 );
 	shader.setEnvTarget( EshTargetSpv, EShTargetSpv_1_3 );
+	
+	//shader.setAutoMapLocations( true );
 
 	CHECK_ERR( shader.parse( &builtin_res, 450, ECoreProfile, false, true, messages ));
 

@@ -70,3 +70,33 @@ bool TestDebugTraceOutput (const std::vector<ShaderTrace*>&	shaders,
 	CHECK_ERR( file_data == merged );
 	return true;
 }
+
+/*
+=================================================
+	CreateDebugOutputBuffer
+=================================================
+*/
+bool CreateDebugOutputBuffer (OUT GLuint &					dbgBuffer,
+							  const std::vector<GLuint>&	programs)
+{
+	glGenBuffers( 1, OUT &dbgBuffer );
+	glBindBuffer( GL_SHADER_STORAGE_BUFFER, dbgBuffer );
+	glBufferStorage( GL_SHADER_STORAGE_BUFFER, BufferSize, nullptr, GL_MAP_READ_BIT | GL_DYNAMIC_STORAGE_BIT );
+
+	uint32_t	zero = 0;
+	glClearBufferData( GL_SHADER_STORAGE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero );
+
+	glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );
+	glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 0, dbgBuffer );
+	
+	for (auto& prog : programs)
+	{
+		GLuint	sb_index = glGetProgramResourceIndex( prog, GL_SHADER_STORAGE_BLOCK, "dbg_ShaderTraceStorage" );
+
+		if ( sb_index == GL_INVALID_INDEX )
+			continue;
+
+		glShaderStorageBlockBinding( prog, sb_index, 0 );
+	}
+	return true;
+}

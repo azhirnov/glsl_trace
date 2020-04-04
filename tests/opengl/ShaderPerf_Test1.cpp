@@ -1,6 +1,7 @@
 // Copyright (c) 2018-2020,  Zhirnov Andrey. For more information see 'LICENSE'
 
 #include "ShaderCompiler.h"
+#include "Utils.h"
 
 extern bool  ShaderPerf_Test1 ()
 {
@@ -60,40 +61,27 @@ void main ()
 	out_Color = vec4(c);
 })#";
 	
-	GLuint		prog = glCreateProgram();
-	GLuint		vert, frag;
+	GLuint		prog, vert, frag;
 	ShaderTrace	dbg_info;
 
 	CHECK_ERR( CreateShader( OUT vert, nullptr, GL_VERTEX_SHADER, vert_shader_source, ETraceMode::None ));
 	CHECK_ERR( CreateShader( OUT frag, OUT &dbg_info, GL_FRAGMENT_SHADER, frag_shader_source, ETraceMode::Performance ));
 	
-	glAttachShader( prog, vert );
-	glAttachShader( prog, frag );
-	glProgramParameteri( prog, GL_PROGRAM_SEPARABLE, GL_TRUE );
-	glLinkProgram( prog );
-
-	GLint	status = 0;
-	glGetProgramiv( prog, GL_LINK_STATUS, OUT &status );
-
-	if ( status != GL_TRUE )
-	{
-		GLchar	buf[1024] = {};
-		glGetProgramInfoLog( prog, sizeof(buf), nullptr, buf );
-		RETURN_ERR( "failed to link program" );
-	}
+	glCreateProgramPipelines( 1, OUT &prog );
+	glUseProgramStages( prog, GL_VERTEX_SHADER_BIT, vert );
+	glUseProgramStages( prog, GL_FRAGMENT_SHADER_BIT, frag );
+	glBindProgramPipeline( prog );
 
 	uint32_t	width = 16, height = 16;
-
+	
 	GLuint		dbg_buffer;
-	uint64_t	dbg_buffer_size = 8 << 20;
-	glGenBuffers( 1, OUT &dbg_buffer );
+	CHECK_ERR( CreateDebugOutputBuffer( OUT dbg_buffer, {vert, frag} ));
+
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, dbg_buffer );
-	glBufferStorage( GL_SHADER_STORAGE_BUFFER, dbg_buffer_size, nullptr, GL_MAP_READ_BIT );
-	uint32_t	zero = 0;
-	glClearBufferData( GL_SHADER_STORAGE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero );
 	uint32_t	data[] = { width/2, height/2 };		// selected pixel
 	glBufferSubData( GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data );
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );
+	glMemoryBarrier( GL_BUFFER_UPDATE_BARRIER_BIT );
 
 	GLuint	rt;
 	glGenRenderbuffers( 1, OUT &rt );
@@ -105,18 +93,18 @@ void main ()
 	glGenFramebuffers( 1, OUT &fbo );
 	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, fbo );
 	glFramebufferRenderbuffer( GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rt );
-
-	glUseProgram( prog );
+	
 	glViewport( 0, 0, width, height );
 	glDrawArrays( GL_TRIANGLE_STRIP, 0, 5 );
 
 	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );
+	glMemoryBarrier( GL_SHADER_STORAGE_BARRIER_BIT );
 
 	glDeleteRenderbuffers( 1, &rt );
 	glDeleteFramebuffers( 1, &fbo );
-	glDeleteProgram( prog );
-	glDeleteShader( vert );
-	glDeleteShader( frag );
+	glDeleteProgramPipelines( 1, &prog );
+	glDeleteProgram( vert );
+	glDeleteProgram( frag );
 	
 	glFinish();
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, dbg_buffer );
@@ -124,7 +112,7 @@ void main ()
 	CHECK_ERR( trace );
 
 	std::vector<std::string>	result;
-	CHECK_ERR( dbg_info.ParseShaderTrace( trace, dbg_buffer_size, OUT result ));
+	CHECK_ERR( dbg_info.ParseShaderTrace( trace, BufferSize, OUT result ));
 	
 	glUnmapBuffer( GL_SHADER_STORAGE_BUFFER );
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );
