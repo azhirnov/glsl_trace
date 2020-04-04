@@ -21,7 +21,6 @@ static const bool	UpdateReferences = true;
 */
 bool TestDebugTraceOutput (const std::vector<ShaderTrace*>&	shaders,
 						   const void*						readBackPtr,
-						   uint64_t							maxBufferSize,
 						   const std::string &				referenceFile)
 {
 	CHECK_ERR( referenceFile.size() );
@@ -33,7 +32,7 @@ bool TestDebugTraceOutput (const std::vector<ShaderTrace*>&	shaders,
 	for (auto& module : shaders)
 	{
 		std::vector<std::string>	temp;
-		CHECK_ERR( module->ParseShaderTrace( readBackPtr, maxBufferSize, OUT temp ));
+		CHECK_ERR( module->ParseShaderTrace( readBackPtr, BufferSize, OUT temp ));
 		CHECK_ERR( temp.size() );
 		debug_output.insert( debug_output.end(), temp.begin(), temp.end() );
 	}

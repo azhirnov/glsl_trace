@@ -34,8 +34,8 @@ if (TRUE)
 		set( SPIRVHEADERS_REPOSITORY "" )
 	endif ()
 	
-	set( ENABLE_HLSL ON CACHE BOOL "glslang option" )
-	set( ENABLE_OPT ON CACHE BOOL "glslang option" )
+	set( ENABLE_HLSL OFF CACHE BOOL "glslang option" FORCE )
+	set( ENABLE_OPT OFF CACHE BOOL "glslang option" FORCE )
 	mark_as_advanced( ENABLE_HLSL ENABLE_OPT )
 
 	if (${EXTERNALS_USE_STABLE_VERSIONS})
@@ -175,12 +175,13 @@ if (TRUE)
 		set( GLSLANG_DEFINITIONS "${GLSLANG_DEFINITIONS}" "ENABLE_OPT" )
 	endif ()
 
+	# glslang libraries
+	set( GLSLANG_LIBNAMES "SPIRV" "glslang" "OSDependent" )
+
 	if (${ENABLE_HLSL})
 		set( GLSLANG_DEFINITIONS "${GLSLANG_DEFINITIONS}" "ENABLE_HLSL" )
+		set( GLSLANG_LIBNAMES "${GLSLANG_LIBNAMES}" "HLSL" )
 	endif ()
-
-	# glslang libraries
-	set( GLSLANG_LIBNAMES "SPIRV" "glslang" "OSDependent" "HLSL" )
 	
 	if (UNIX)
 		set( GLSLANG_LIBNAMES "${GLSLANG_LIBNAMES}" "pthread" )

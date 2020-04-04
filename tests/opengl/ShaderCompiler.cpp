@@ -36,6 +36,12 @@ bool CreateShader (OUT GLuint &			result,
 							 "#extension GL_ARB_separate_shader_objects : require\n"
 							 "#extension GL_ARB_shading_language_420pack : require\n";
 	
+	if (enableShaderSubgroupClock)
+		header += "#extension GL_ARB_shader_clock : require\n";
+
+	if (enableShaderDeviceClock)
+		header += "#extension GL_EXT_shader_realtime_clock : require\n";
+
 	switch ( shaderType )
 	{
 		case GL_COMPUTE_SHADER :			sh_lang = EShLangCompute;			break;
@@ -134,7 +140,7 @@ bool CompileGLSL (OUT std::string&				glslResult,
 				break;
 
 			case ETraceMode::Performance :
-				CHECK_ERR( dbgInfo->InsertFunctionProfiler( INOUT *intermediate, 8, true, true ));
+				CHECK_ERR( dbgInfo->InsertFunctionProfiler( INOUT *intermediate, 8, enableShaderSubgroupClock, enableShaderDeviceClock ));
 				break;
 
 			default :

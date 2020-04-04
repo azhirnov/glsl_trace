@@ -76,6 +76,10 @@ void main ()
 	
 	GLuint		dbg_buffer;
 	CHECK_ERR( CreateDebugOutputBuffer( OUT dbg_buffer, {vert, frag} ));
+	
+	GLuint		vao;
+	glCreateVertexArrays( 1, OUT &vao );
+	glBindVertexArray( vao );
 
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, dbg_buffer );
 	uint32_t	data[] = { width/2, height/2 };		// selected pixel
@@ -105,6 +109,7 @@ void main ()
 	glDeleteProgramPipelines( 1, &prog );
 	glDeleteProgram( vert );
 	glDeleteProgram( frag );
+	glDeleteVertexArrays( 1, &vao );
 	
 	glFinish();
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, dbg_buffer );
@@ -113,6 +118,7 @@ void main ()
 
 	std::vector<std::string>	result;
 	CHECK_ERR( dbg_info.ParseShaderTrace( trace, BufferSize, OUT result ));
+	CHECK_ERR( result.size() );
 	
 	glUnmapBuffer( GL_SHADER_STORAGE_BUFFER );
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );

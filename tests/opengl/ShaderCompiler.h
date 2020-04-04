@@ -17,6 +17,9 @@ enum class ETraceMode
 	Performance,
 };
 
+static bool  enableShaderSubgroupClock = false;
+static bool  enableShaderDeviceClock   = false;
+
 bool CompileGLSL (OUT std::string&				glslResult,
 				  OUT ShaderTrace*				dbgInfo,
 				  std::vector<const char *>		source,

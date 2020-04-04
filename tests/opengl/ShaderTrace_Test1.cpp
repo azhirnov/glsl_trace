@@ -116,7 +116,7 @@ void main ()
 	void* trace = glMapBuffer( GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY );
 	CHECK_ERR( trace );
 	
-	CHECK_ERR( TestDebugTraceOutput( {&dbg_info}, trace, BufferSize, "ShaderTrace_Test1.txt" ));
+	CHECK_ERR( TestDebugTraceOutput( {&dbg_info}, trace, "ShaderTrace_Test1.txt" ));
 	
 	glUnmapBuffer( GL_SHADER_STORAGE_BUFFER );
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );

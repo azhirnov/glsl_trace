@@ -424,8 +424,8 @@ bool  Trace::_FlushProfiling (const Sources_t &sources, INOUT std::string &resul
 	std::sort( sorted.begin(), sorted.end(), [](auto* lhs, auto *rhs) { return lhs->second.device > rhs->second.device; });
 
 	// print
-	const double	max_subgroup_time	= 100.0 / double(sorted.front()->second.subgroup);
-	const double	max_device_time		= 100.0 / double(sorted.front()->second.device);
+	const double	max_subgroup_time	= sorted.front()->second.subgroup ? 100.0 / double(sorted.front()->second.subgroup) : 1.0;
+	const double	max_device_time		= sorted.front()->second.device ? 100.0 / double(sorted.front()->second.device) : 1.0;
 
 	const auto		DtoStr = [] (double value) -> std::string
 	{
