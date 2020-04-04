@@ -9,7 +9,7 @@ using namespace glslang;
 	GetFunctionName
 =================================================
 */
-std::string  GetFunctionName (TIntermOperator *op)
+string  GetFunctionName (TIntermOperator *op)
 {
 	if ( TIntermAggregate* aggr = op->getAsAggregate(); aggr and aggr->getOp() == TOperator::EOpFunctionCall )
 	{
@@ -18,16 +18,16 @@ std::string  GetFunctionName (TIntermOperator *op)
 	}
 
 #ifdef HIGH_DETAIL_TRACE
-	std::string	suffix;
+	string	suffix;
 	if ( op->getOp() >= TOperator::EOpConvInt8ToBool and op->getOp() <= TOperator::EOpConvDoubleToFloat )
 	{
 		TType const&	type = op->getType();
 
 		if ( type.isVector() )
-			suffix = "vec" + std::to_string( type.getVectorSize() );
+			suffix = "vec" + to_string( type.getVectorSize() );
 		else
 		if ( type.isMatrix() )
-			suffix = "mat" + std::to_string( type.getMatrixCols() ) + "x" + std::to_string( type.getMatrixRows() );
+			suffix = "mat" + to_string( type.getMatrixCols() ) + "x" + to_string( type.getMatrixRows() );
 	}
 #endif
 

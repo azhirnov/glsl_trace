@@ -11,7 +11,6 @@
 #include "SPIRV/GlslangToSpv.h"
 #include "SPIRV/GLSL.std.450.h"
 #include "StandAlone/ResourceLimits.cpp"
-#include "spirv-tools/libspirv.h"
 using namespace glslang;
 
 // spirv cross
@@ -158,7 +157,7 @@ bool CompileGLSL (OUT std::string&				glslResult,
 	spv_options.optimizeSize		= false;
 	spv_options.validate			= false;
 		
-	std::vector<uint32_t> spirv;
+	std::vector<uint>	spirv;
 	GlslangToSpv( *intermediate, OUT spirv, &logger, &spv_options );
 
 	CHECK_ERR( spirv.size() );

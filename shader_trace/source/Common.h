@@ -3,24 +3,40 @@
 #pragma once
 
 #include "../include/ShaderTrace.h"
+#include <unordered_map>
+#include <unordered_set>
+#include <algorithm>
+
+using std::vector;
+using std::string;
+using std::unordered_map;
+using std::unordered_set;
+using std::min;
+using std::max;
+using std::to_string;
+
+using uint = uint32_t;
 
 #define HIGH_DETAIL_TRACE
 
-#if defined(ENABLE_GLSLANG)
-#	include "stl/Common.h"
-#else
-//#	undef NDEBUG
-#	include <assert.h>
+//#undef NDEBUG
+#include <assert.h>
 
+#ifndef OUT
 #	define OUT
-#	define INOUT
+#endif
 
-# ifdef _MSC_VER
+#ifndef INOUT
+#	define INOUT
+#endif
+
+#if defined(_MSC_VER) && !defined(and)
 #	define not					!
 #	define and					&&
 #	define or					||
-# endif
+#endif
 
+#ifndef CHECK_ERR
 #	define __GETARG_0( _0_, ... )		_0_
 #	define __GETARG_1( _0_, _1_, ... )	_1_
 #	define __CHECK_ERR( _expr_, _ret_ )	{if (not (_expr_)) { assert(!(#_expr_)); return _ret_; } }
@@ -28,15 +44,25 @@
 #	define RETURN_ERR( _msg_ )			{ assert(!(#_msg_)); return 0; }
 #	define CHECK( _expr_ )				{ assert(_expr_); }
 #	define ASSERT( _expr_ )				{ assert(_expr_); }
+#endif
 
-# ifndef ND_
+#ifndef ND_
 #	if (defined(_MSC_VER) && (_MSC_VER >= 1917)) //|| (defined(__clang__) && __has_feature( cxx_attributes )) || (defined(__gcc__) && __has_cpp_attribute( nodiscard ))
 #		define ND_		[[nodiscard]]
 #	else
 #		define ND_
 #	endif
-# endif
+#endif
 
+#ifdef _MSC_VER
+#	define FUNCTION_NAME			__FUNCTION__
+#elif defined(__clang__) or defined(__gcc__)
+#	define FUNCTION_NAME			__func__
+#else
+#	define FUNCTION_NAME			"unknown function"
+#endif
+
+#ifndef BEGIN_ENUM_CHECKS
 # if defined(_MSC_VER)
 #	define BEGIN_ENUM_CHECKS() \
 		__pragma (warning (push)) \
@@ -59,8 +85,7 @@
 #	define END_ENUM_CHECKS()
 
 # endif
-
-#endif
+#endif	// BEGIN_ENUM_CHECKS
 
 
 // glslang includes

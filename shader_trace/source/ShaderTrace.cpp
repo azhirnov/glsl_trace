@@ -70,7 +70,7 @@ void ShaderTrace::IncludeSource (const char* filename, const char* source, size_
 {
 	ASSERT( length > 0 );
 
-	_fileMap.insert_or_assign( std::string(filename), uint32_t(_sources.size()) );
+	_fileMap.insert_or_assign( string(filename), uint(_sources.size()) );
 	_AppendSource( source, length );
 }
 
@@ -79,7 +79,7 @@ void ShaderTrace::IncludeSource (const char* filename, const char* source, size_
 	GetSource
 =================================================
 */
-void ShaderTrace::GetSource (OUT std::string &result) const
+void ShaderTrace::GetSource (OUT string &result) const
 {
 	size_t	total_size = _sources.size()*2;
 

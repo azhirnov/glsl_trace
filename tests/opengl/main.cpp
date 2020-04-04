@@ -4,6 +4,7 @@
 #include "GLFW/glfw3.h"
 #include "source/Common.h"
 #include "ShaderCompiler.h"
+#include <iostream>
 
 using namespace std::string_literals;
 
@@ -13,7 +14,7 @@ extern bool  ShaderTrace_Test1 ();
 
 void GLAPIENTRY  DbgCallback (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
-	return;
+	std::cout << "OpenGL error: " << message << std::endl;
 }
 
 

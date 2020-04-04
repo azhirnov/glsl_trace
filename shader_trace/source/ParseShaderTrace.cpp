@@ -12,7 +12,7 @@ using VariableID = ShaderTrace::VariableID;
 
 namespace std
 {
-	inline std::string  to_string (bool value)
+	inline string  to_string (bool value)
 	{
 		return value ? "true" : "false";
 	}
@@ -36,7 +36,7 @@ public:
 	union Value
 	{
 		std::array< int32_t, 4 >	i;
-		std::array< uint32_t, 4 >	u;
+		std::array< uint, 4 >		u;
 		std::array< bool, 4 >		b;
 		std::array< float, 4 >		f;
 		std::array< double, 4 >		d;
@@ -48,7 +48,7 @@ public:
 	{
 		Value			value		{};
 		TBasicType		type		= TBasicType::EbtVoid;
-		uint32_t		count		= 0;
+		uint			count		= 0;
 		bool			modified	= false;
 	};
 
@@ -56,16 +56,16 @@ public:
 	{
 		uint64_t		subgroup	= 0;
 		uint64_t		device		= 0;
-		uint32_t		count		= 0;
+		uint			count		= 0;
 	};
 
-	using VarStates_t	= std::unordered_map< uint64_t, VariableState >;
-	using Pending_t		= std::vector< uint64_t >;
-	using Profiling_t	= std::unordered_map< ExprInfo const*, FnExecutionDuration >;
+	using VarStates_t	= unordered_map< uint64_t, VariableState >;
+	using Pending_t		= vector< uint64_t >;
+	using Profiling_t	= unordered_map< ExprInfo const*, FnExecutionDuration >;
 
 
 public:
-	uint32_t			lastPosition	= ~0u;
+	uint				lastPosition	= ~0u;
 private:
 	VarStates_t			_states;
 	Pending_t			_pending;
@@ -74,18 +74,18 @@ private:
 
 
 public:
-	bool AddState (const ExprInfo &expr, TBasicType type, uint32_t rows, uint32_t cols, const uint32_t *data,
-					const VarNames_t &varNames, const Sources_t &src, INOUT std::string &result);
+	bool AddState (const ExprInfo &expr, TBasicType type, uint rows, uint cols, const uint *data,
+					const VarNames_t &varNames, const Sources_t &src, INOUT string &result);
 
-	bool AddTime (const ExprInfo &expr, uint32_t rows, uint32_t cols, const uint32_t *data);
+	bool AddTime (const ExprInfo &expr, uint rows, uint cols, const uint *data);
 
-	bool Flush (const VarNames_t &varNames, const Sources_t &src, INOUT std::string &result);
+	bool Flush (const VarNames_t &varNames, const Sources_t &src, INOUT string &result);
 
 private:
-	bool _FlushStates (const VarNames_t &varNames, const Sources_t &src, INOUT std::string &result);
-	bool _FlushProfiling (const Sources_t &src, INOUT std::string &result);
+	bool _FlushStates (const VarNames_t &varNames, const Sources_t &src, INOUT string &result);
+	bool _FlushProfiling (const Sources_t &src, INOUT string &result);
 
-	static uint64_t		HashOf (VariableID id, uint32_t col)	{ return (uint64_t(id) << 32) | col; }
+	static uint64_t		HashOf (VariableID id, uint col)	{ return (uint64_t(id) << 32) | col; }
 	static VariableID	VarFromHash (uint64_t h)				{ return VariableID(h >> 32); }
 };
 
@@ -94,7 +94,7 @@ private:
 	CopyValue
 =================================================
 */
-inline void  CopyValue (TBasicType type, INOUT Trace::Value &value, uint32_t valueIndex, const uint32_t *data, INOUT uint32_t &dataIndex)
+inline void  CopyValue (TBasicType type, INOUT Trace::Value &value, uint valueIndex, const uint *data, INOUT uint &dataIndex)
 {
 	switch ( type )
 	{
@@ -140,8 +140,8 @@ inline void  CopyValue (TBasicType type, INOUT Trace::Value &value, uint32_t val
 	Trace::AddState
 =================================================
 */
-bool  Trace::AddState (const ExprInfo &expr, TBasicType type, uint32_t rows, uint32_t cols, const uint32_t *data,
-					   const VarNames_t &varNames, const Sources_t &sources, INOUT std::string &result)
+bool  Trace::AddState (const ExprInfo &expr, TBasicType type, uint rows, uint cols, const uint *data,
+					   const VarNames_t &varNames, const Sources_t &sources, INOUT string &result)
 {
 	if ( not (_lastLoc == expr.range) )
 		CHECK_ERR( _FlushStates( varNames, sources, INOUT result ));
@@ -154,7 +154,7 @@ bool  Trace::AddState (const ExprInfo &expr, TBasicType type, uint32_t rows, uin
 		_pending.push_back( newID );
 	};
 
-	for (uint32_t col = 0; col < cols; ++col)
+	for (uint col = 0; col < cols; ++col)
 	{
 		uint64_t	id   = HashOf( expr.varID, col );
 		auto		iter = _states.find( id );
@@ -177,28 +177,28 @@ bool  Trace::AddState (const ExprInfo &expr, TBasicType type, uint32_t rows, uin
 		else
 		if ( expr.swizzle )
 		{
-			for (uint32_t i = 0; i < rows; ++i)
+			for (uint i = 0; i < rows; ++i)
 			{
-				uint32_t	sw = (expr.swizzle >> (i*3)) & 7;
+				uint	sw = (expr.swizzle >> (i*3)) & 7;
 				ASSERT( sw > 0 and sw <= 4 );
-				var.count = std::max( 1u, std::max( var.count, sw ));
+				var.count = max( 1u, max( var.count, sw ));
 			}
 			
-			for (uint32_t r = 0, j = 0; r < rows; ++r)
+			for (uint r = 0, j = 0; r < rows; ++r)
 			{
-				uint32_t	sw = (expr.swizzle >> (r*3)) & 7;
+				uint	sw = (expr.swizzle >> (r*3)) & 7;
 				CopyValue( type, INOUT var.value, sw-1, data, INOUT j );
 			}
 		}
 		else
 		{
-			for (uint32_t r = 0, j = 0; r < rows; ++r) {
+			for (uint r = 0, j = 0; r < rows; ++r) {
 				CopyValue( type, INOUT var.value, r, data, INOUT j );
 			}
 		}
 		
-		var.count = std::max( var.count, rows );
-		var.count = std::min( var.count, 4u );
+		var.count = max( var.count, rows );
+		var.count = min( var.count, 4u );
 
 		AppendID( id );
 
@@ -219,7 +219,7 @@ bool  Trace::AddState (const ExprInfo &expr, TBasicType type, uint32_t rows, uin
 	AddTime
 =================================================
 */
-bool  Trace::AddTime (const ExprInfo &expr, uint32_t rows, uint32_t cols, const uint32_t *data)
+bool  Trace::AddTime (const ExprInfo &expr, uint rows, uint cols, const uint *data)
 {
 	auto&	fn = _profiling[ &expr ];
 
@@ -253,17 +253,17 @@ bool  Trace::AddTime (const ExprInfo &expr, uint32_t rows, uint32_t cols, const 
 =================================================
 */
 template <typename T>
-std::string  TypeToString (uint32_t rows, const std::array<T,4> &values)
+string  TypeToString (uint rows, const std::array<T,4> &values)
 {
-	std::string		str;
+	string		str;
 
 	if ( rows > 1 )
-		str += std::to_string( rows );
+		str += to_string( rows );
 
 	str += " {";
 
-	for (uint32_t r = 0; r < rows; ++r) {
-		str += (r ? ", " : "") + std::to_string( values[r] );
+	for (uint r = 0; r < rows; ++r) {
+		str += (r ? ", " : "") + to_string( values[r] );
 	}
 	
 	str += "}\n";
@@ -275,15 +275,15 @@ std::string  TypeToString (uint32_t rows, const std::array<T,4> &values)
 	AppendSourceRange
 =================================================
 */
-bool  AppendSourceRange (const Trace::SourceLocation &loc, const Trace::Sources_t &sources, INOUT std::string &result)
+bool  AppendSourceRange (const Trace::SourceLocation &loc, const Trace::Sources_t &sources, INOUT string &result)
 {
 	CHECK_ERR( loc.sourceId < sources.size() );
 
 	const auto&		src			= sources[ loc.sourceId ];
-	const uint32_t	start_line	= std::max( 1u, loc.begin.Line() ) - 1;	// because first line is 1
-	const uint32_t	end_line	= std::max( 1u, loc.end.Line() ) - 1;
-	const uint32_t	start_col	= std::max( 1u, loc.begin.Column() ) - 1;
-	const uint32_t	end_col		= std::max( 1u, loc.end.Column() ) - 1;
+	const uint		start_line	= max( 1u, loc.begin.Line() ) - 1;	// because first line is 1
+	const uint		end_line	= max( 1u, loc.end.Line() ) - 1;
+	const uint		start_col	= max( 1u, loc.begin.Column() ) - 1;
+	const uint		end_col		= max( 1u, loc.end.Column() ) - 1;
 
 	CHECK_ERR( start_line < src.lines.size() );
 	CHECK_ERR( end_line < src.lines.size() );
@@ -291,9 +291,9 @@ bool  AppendSourceRange (const Trace::SourceLocation &loc, const Trace::Sources_
 	if ( loc.sourceId == 0 and end_line == 0 and end_col == 0 )
 		result += "no source\n";
 	else
-	for (uint32_t i = start_line; i <= end_line; ++i)
+	for (uint i = start_line; i <= end_line; ++i)
 	{
-		result += std::to_string(i+1) + ". ";
+		result += to_string(i+1) + ". ";
 
 		size_t	start	= src.lines[i].first;
 		size_t	end		= src.lines[i].second;
@@ -323,7 +323,7 @@ bool  AppendSourceRange (const Trace::SourceLocation &loc, const Trace::Sources_
 	Trace::_FlushStates
 =================================================
 */
-bool  Trace::_FlushStates (const VarNames_t &varNames, const Sources_t &sources, INOUT std::string &result)
+bool  Trace::_FlushStates (const VarNames_t &varNames, const Sources_t &sources, INOUT string &result)
 {
 	const auto	Convert = [this, &varNames, INOUT &result] (uint64_t varHash) -> bool
 	{
@@ -335,9 +335,9 @@ bool  Trace::_FlushStates (const VarNames_t &varNames, const Sources_t &sources,
 
 		auto	name = varNames.find( id );
 		if ( name != varNames.end() )
-			result += std::string("//") + (iter->second.modified ? "> " : "  ") + name->second + ": ";
+			result += string("//") + (iter->second.modified ? "> " : "  ") + name->second + ": ";
 		else
-			result += std::string("//") + (iter->second.modified ? "> (out): " : "  (temp): ");
+			result += string("//") + (iter->second.modified ? "> (out): " : "  (temp): ");
 
 		iter->second.modified = false;
 
@@ -408,13 +408,13 @@ bool  Trace::_FlushStates (const VarNames_t &varNames, const Sources_t &sources,
 	Trace::_FlushProfiling
 =================================================
 */
-bool  Trace::_FlushProfiling (const Sources_t &sources, INOUT std::string &result)
+bool  Trace::_FlushProfiling (const Sources_t &sources, INOUT string &result)
 {
 	if ( _profiling.empty() )
 		return true;
 
 	// sort by device time
-	std::vector< std::pair<ExprInfo const* const, FnExecutionDuration>* >	sorted;
+	vector< std::pair<ExprInfo const* const, FnExecutionDuration>* >	sorted;
 	sorted.reserve( _profiling.size() );
 
 	for (auto& item : _profiling) {
@@ -427,7 +427,7 @@ bool  Trace::_FlushProfiling (const Sources_t &sources, INOUT std::string &resul
 	const double	max_subgroup_time	= sorted.front()->second.subgroup ? 100.0 / double(sorted.front()->second.subgroup) : 1.0;
 	const double	max_device_time		= sorted.front()->second.device ? 100.0 / double(sorted.front()->second.device) : 1.0;
 
-	const auto		DtoStr = [] (double value) -> std::string
+	const auto		DtoStr = [] (double value) -> string
 	{
 		char		buf[32] = {};
 		const int	len = std::snprintf( buf, sizeof(buf), "%0.2f", value );
@@ -451,7 +451,7 @@ bool  Trace::_FlushProfiling (const Sources_t &sources, INOUT std::string &resul
 					DtoStr( (double(time.device) * max_device_time) / double(time.count) ) + "%,  (" +
 					DtoStr( double(time.device) / double(time.count) ) + ")\n";
 
-		result += "// invocations:    " + std::to_string( time.count ) + "\n";
+		result += "// invocations:    " + to_string( time.count ) + "\n";
 
 		CHECK_ERR( AppendSourceRange( expr.range, sources, INOUT result ));
 		result += "\n";
@@ -465,7 +465,7 @@ bool  Trace::_FlushProfiling (const Sources_t &sources, INOUT std::string &resul
 	Trace::Flush
 =================================================
 */
-bool  Trace::Flush (const VarNames_t &varNames, const Sources_t &sources, INOUT std::string &result)
+bool  Trace::Flush (const VarNames_t &varNames, const Sources_t &sources, INOUT string &result)
 {
 	CHECK_ERR( _FlushStates( varNames, sources, INOUT result ));
 	CHECK_ERR( _FlushProfiling( sources, INOUT result ));
@@ -478,7 +478,7 @@ bool  Trace::Flush (const VarNames_t &varNames, const Sources_t &sources, INOUT 
 	GetTypeSizeOf
 =================================================
 */
-inline uint32_t  GetTypeSizeOf (TBasicType type)
+inline uint  GetTypeSizeOf (TBasicType type)
 {
 	switch ( type )
 	{
@@ -509,26 +509,26 @@ inline uint32_t  GetTypeSizeOf (TBasicType type)
 	ParseShaderTrace
 =================================================
 */
-bool  ShaderTrace::ParseShaderTrace (const void *ptr, uint64_t maxSize, OUT std::vector<std::string> &result) const
+bool  ShaderTrace::ParseShaderTrace (const void *ptr, uint64_t maxSize, OUT vector<string> &result) const
 {
 	result.clear();
 
-	const uint64_t		count		= *(static_cast<uint32_t const*>(ptr) + _posOffset / sizeof(uint32_t));
-	uint32_t const*		start_ptr	= static_cast<uint32_t const*>(ptr) + _dataOffset / sizeof(uint32_t);
-	uint32_t const*		end_ptr		= start_ptr + std::min( count, (maxSize - _dataOffset) / sizeof(uint32_t) );
-	std::vector<Trace>	shaders;
+	const uint64_t	count		= *(static_cast<uint const*>(ptr) + _posOffset / sizeof(uint));
+	uint const*		start_ptr	= static_cast<uint const*>(ptr) + _dataOffset / sizeof(uint);
+	uint const*		end_ptr		= start_ptr + min( count, (maxSize - _dataOffset) / sizeof(uint) );
+	vector<Trace>	shaders;
 	
 	for (auto data_ptr = start_ptr; data_ptr < end_ptr;)
 	{
-		uint32_t		pos			= uint32_t(std::distance( start_ptr, data_ptr ));
-		uint32_t		prev_pos	= *(data_ptr++);
-		uint32_t		expr_id		= *(data_ptr++);
-		uint32_t		type		= *(data_ptr++);
-		TBasicType		t_basic		= TBasicType(type & 0xFF);
-		uint32_t		row_size	= (type >> 8) & 0xF;					// for scalar, vector and matrix
-		uint32_t		col_size	= std::max(1u, (type >> 12) & 0xF );	// only for matrix
-		uint32_t const*	data		= data_ptr;
-		Trace*			trace		= nullptr;
+		uint		pos			= uint(std::distance( start_ptr, data_ptr ));
+		uint		prev_pos	= *(data_ptr++);
+		uint		expr_id		= *(data_ptr++);
+		uint		type		= *(data_ptr++);
+		TBasicType	t_basic		= TBasicType(type & 0xFF);
+		uint		row_size	= (type >> 8) & 0xF;					// for scalar, vector and matrix
+		uint		col_size	= max(1u, (type >> 12) & 0xF );	// only for matrix
+		uint const*	data		= data_ptr;
+		Trace*		trace		= nullptr;
 
 		CHECK_ERR( (t_basic == TBasicType::EbtVoid and row_size == 0) or (row_size > 0 and row_size <= 4) );
 		CHECK_ERR( col_size > 0 and col_size <= 4 );

@@ -78,10 +78,10 @@ void main ()
 	glCreateVertexArrays( 1, OUT &vao );
 	glBindVertexArray( vao );
 	
-	uint32_t	width = 16, height = 16;
+	uint	width = 16, height = 16;
 
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, dbg_buffer );
-	uint32_t	data[] = { width/2, height/2 };		// selected pixel
+	uint	data[] = { width/2, height/2 };		// selected pixel
 	glBufferSubData( GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data );
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );
 	glMemoryBarrier( GL_BUFFER_UPDATE_BARRIER_BIT );

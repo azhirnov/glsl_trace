@@ -5,7 +5,15 @@
  * shader profiling (using extensions [EXT_shader_realtime_clock](https://github.com/KhronosGroup/GLSL/blob/master/extensions/ext/EXT_shader_realtime_clock.txt) and [ARB_shader_clock](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_shader_clock.txt))
  * supports mesh and ray tracing shaders (Vulkan only)
 
-## How its works
+
+## Dependencies
+ * [glslang](https://github.com/KhronosGroup/glslang) - required
+ * [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) - required for OpenGL
+ * [GLFW](https://www.glfw.org/) - for tests
+ * [GLEW](http://glew.sourceforge.net/) - for tests
+
+
+## How to use
 **Setup:**</br> 
  * (__OpenGL__) Create shader and shader program for reqular rendering.
  * Use [glslang](https://github.com/KhronosGroup/glslang) to parse GLSL or HLSL source code
@@ -28,12 +36,32 @@
  * (__OpenGL__) get shader storage block index of `dbg_ShaderTraceStorage`and bind storage buffer to that index.
  * after invocation map storage buffer and pass pointer to `ShaderTrace::ParseShaderTrace (const void *ptr, uint64_t maxSize, vector<string> &result)`
  
+ 
+## How its works
+ **Debugging:**
+ * AST processing: log all function results, log all function calls, log some operator results.
+ * Result parsing: write modified values, write unmodified values that are used, write line number and line from source code.
+ 
+ **Profiling:**
+ * AST processing: insert time measurement into user-defined functions.
+ * Result parsing: calculate average time and a fraction of the total shader execution time.
+ 
+ * Shader trace recorded to the storage buffer as forward list using atomic operations.
+ * Each `ShaderTrace` object has unique number to determine different shaders when parsing result.
+ * Allowed debugging on different shader stages in single draw/dispatch call.
+ * Many invocations of same or different shaders can be recoreded into one storage buffer.
+
+
 ## Debugging
 
 <details>
 <summary>Enable pixel/invocation debugging from code (OpenGL)</summary>
    
 ```cpp
+GLuint	sb_index = glGetProgramResourceIndex( program, GL_SHADER_STORAGE_BLOCK, "dbg_ShaderTraceStorage" );
+glShaderStorageBlockBinding( program, sb_index, /*binding*/0 );
+glBindBufferBase( GL_SHADER_STORAGE_BUFFER, /*binding*/0, dbgBuffer );
+		
 // clear buffer
 uint32_t  zero = 0;
 glClearBufferData( GL_SHADER_STORAGE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero );
@@ -60,6 +88,8 @@ glBufferSubData( GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data );
 <summary>Enable pixel/invocation debugging from code (Vulkan)</summary>
    
 ```cpp
+vkCmdBindDescriptorSets( cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ppln_layout, descSetIndex, 1, &dbg_desc_set, 0, nullptr );
+	
 // set pixel which you need to debug (2 components)
 // record if {pixel_x, pixel_y} == floor(gl_FragCoord.xy)
 uint32_t  data[] = { pixel_x, pixel_y };
@@ -125,6 +155,7 @@ no source
 //  value: float {0.506611}
 14.     imageStore( un_OutImage, ivec2(gl_GlobalInvocationID.xy), vec4(value) );
 ```
+The `//>` symbol marks the modified variable or function result.
 </details>
 
 
@@ -134,6 +165,10 @@ no source
 <summary>Enable pixel/invocation profiling from code (OpenGL)</summary>
    
 ```cpp
+GLuint	sb_index = glGetProgramResourceIndex( program, GL_SHADER_STORAGE_BLOCK, "dbg_ShaderTraceStorage" );
+glShaderStorageBlockBinding( program, sb_index, /*binding*/0 );
+glBindBufferBase( GL_SHADER_STORAGE_BUFFER, /*binding*/0, dbgBuffer );
+
 // clear buffer
 uint32_t  zero = 0;
 glClearBufferData( GL_SHADER_STORAGE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero );
@@ -160,6 +195,8 @@ glBufferSubData( GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data );
 <summary>Enable pixel/invocation profiling from code (Vulkan)</summary>
    
 ```cpp
+vkCmdBindDescriptorSets( cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ppln_layout, descSetIndex, 1, &dbg_desc_set, 0, nullptr );
+
 // set pixel which you need to debug (2 components)
 // record if {pixel_x, pixel_y} == floor(gl_FragCoord.xy)
 uint32_t  data[] = { pixel_x, pixel_y };

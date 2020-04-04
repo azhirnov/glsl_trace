@@ -75,6 +75,7 @@ bool TestDebugTraceOutput (const std::vector<ShaderTrace*>&	shaders,
 	CreateDebugOutputBuffer
 =================================================
 */
+#ifdef ENABLE_OPENGL
 bool CreateDebugOutputBuffer (OUT GLuint &					dbgBuffer,
 							  const std::vector<GLuint>&	programs)
 {
@@ -82,7 +83,7 @@ bool CreateDebugOutputBuffer (OUT GLuint &					dbgBuffer,
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, dbgBuffer );
 	glBufferStorage( GL_SHADER_STORAGE_BUFFER, BufferSize, nullptr, GL_MAP_READ_BIT | GL_DYNAMIC_STORAGE_BIT );
 
-	uint32_t	zero = 0;
+	uint	zero = 0;
 	glClearBufferData( GL_SHADER_STORAGE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero );
 
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );
@@ -99,3 +100,4 @@ bool CreateDebugOutputBuffer (OUT GLuint &					dbgBuffer,
 	}
 	return true;
 }
+#endif	// ENABLE_OPENGL

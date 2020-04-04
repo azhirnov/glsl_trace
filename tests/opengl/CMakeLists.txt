@@ -19,4 +19,8 @@ target_link_libraries( "Tests.OpenGL" PUBLIC "GLFW-lib" )
 target_link_libraries( "Tests.OpenGL" PUBLIC "GLEW-lib" )
 target_link_libraries( "Tests.OpenGL" PUBLIC "opengl32" )
 
-target_compile_definitions( "Tests.OpenGL" PUBLIC "DATA_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/../ref/\"" )
+target_compile_definitions( "Tests.OpenGL" PUBLIC "ENABLE_OPENGL" "DATA_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/../ref/\"" )
+
+if (NOT CI_BUILD)
+	add_test( NAME "Tests.OpenGL" COMMAND "Tests.OpenGL" )
+endif ()

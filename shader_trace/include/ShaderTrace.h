@@ -1,4 +1,8 @@
 // Copyright (c) 2018-2020,  Zhirnov Andrey. For more information see 'LICENSE'
+/*
+	GLSL Trace project
+	https://github.com/azhirnov/glsl_trace
+*/
 
 #pragma once
 

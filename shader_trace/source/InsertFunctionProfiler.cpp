@@ -33,14 +33,14 @@ namespace
 
 		struct VariableInfo
 		{
-			VariableID				id;
-			std::string				name;
-			std::vector<TSourceLoc>	locations;
+			VariableID			id;
+			string				name;
+			vector<TSourceLoc>	locations;
 		};
 
 		struct FnCallLocation
 		{
-			std::string		fnName;
+			string			fnName;
 			TSourceLoc		loc;
 
 			bool operator == (const FnCallLocation &) const;
@@ -62,16 +62,16 @@ namespace
 			size_t operator () (const FieldInfo &) const;
 		};
 
-		using SymbolLocations_t		= std::unordered_map< int, std::vector<TIntermSymbol *> >;
-		using RequiredFunctions_t	= std::unordered_set< TString >;
-		using CachedSymbols_t		= std::unordered_map< TString, TIntermSymbol *>;
-		using VariableInfoMap_t		= std::unordered_map< int, VariableInfo >;
-		using FnCallMap_t			= std::unordered_map< FnCallLocation, VariableInfo, FnCallLocationHash >;
-		using StructFieldMap_t		= std::unordered_map< FieldInfo, VariableInfo, FieldInfoHash >;
-		using CallStack_t			= std::vector< StackFrame >;
-		using FileMap_t				= std::unordered_map< std::string, uint32_t >;
-		using StartTimeStack_t		= std::vector< TIntermSymbol* >;
-		using StartTimeNodes_t		= std::vector< TIntermSymbol* >;
+		using SymbolLocations_t		= unordered_map< int, vector<TIntermSymbol *> >;
+		using RequiredFunctions_t	= unordered_set< TString >;
+		using CachedSymbols_t		= unordered_map< TString, TIntermSymbol *>;
+		using VariableInfoMap_t		= unordered_map< int, VariableInfo >;
+		using FnCallMap_t			= unordered_map< FnCallLocation, VariableInfo, FnCallLocationHash >;
+		using StructFieldMap_t		= unordered_map< FieldInfo, VariableInfo, FieldInfoHash >;
+		using CallStack_t			= vector< StackFrame >;
+		using FileMap_t				= unordered_map< string, uint >;
+		using StartTimeStack_t		= vector< TIntermSymbol* >;
+		using StartTimeNodes_t		= vector< TIntermSymbol* >;
 
 		static constexpr int	InvalidSymbolID = -1;
 
@@ -122,9 +122,9 @@ namespace
 		CallStack_t const&	GetCallStack ()			const				{ return _callStack; }
 		TIntermAggregate*	GetCurrentFunction ();
 
-		uint32_t		GetSourceLocation (TIntermNode* node, const TSourceLoc &curr);
-		uint32_t		GetCustomSourceLocation (TIntermNode* node, const TSourceLoc &curr);
-		uint32_t		GetCustomSourceLocation2 (TIntermNode* node, const TSourceLoc &begin, const TSourceLoc &end);
+		uint			GetSourceLocation (TIntermNode* node, const TSourceLoc &curr);
+		uint			GetCustomSourceLocation (TIntermNode* node, const TSourceLoc &curr);
+		uint			GetCustomSourceLocation2 (TIntermNode* node, const TSourceLoc &begin, const TSourceLoc &end);
 
 		SrcLoc const&	GetCurrentLocation () const						{ return _callStack.back().loc; }
 		void			AddLocation (const TSourceLoc &loc);
@@ -161,8 +161,8 @@ namespace
 
 
 	private:
-		void		_GetVariableID (TIntermNode* node, OUT VariableID &id, OUT uint32_t &swizzle);
-		uint32_t	_GetSourceId (const TSourceLoc &) const;
+		void		_GetVariableID (TIntermNode* node, OUT VariableID &id, OUT uint &swizzle);
+		uint		_GetSourceId (const TSourceLoc &) const;
 	};
 
 
@@ -198,9 +198,9 @@ namespace
 
 
 bool RecursiveProcessNode (TIntermNode* node, DebugInfo &dbgInfo);
-void CreateShaderDebugStorage (uint32_t setIndex, DebugInfo &dbgInfo, OUT uint64_t &posOffset, OUT uint64_t &dataOffset);
+void CreateShaderDebugStorage (uint setIndex, DebugInfo &dbgInfo, OUT uint64_t &posOffset, OUT uint64_t &dataOffset);
 void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo);
-bool CreateDebugTraceFunctions (TIntermNode* root, uint32_t initialPosition, DebugInfo &dbgInfo);
+bool CreateDebugTraceFunctions (TIntermNode* root, uint initialPosition, DebugInfo &dbgInfo);
 TIntermAggregate*  RecordShaderInfo (const TSourceLoc &loc, DebugInfo &dbgInfo);
 
 /*
@@ -229,7 +229,7 @@ void  DebugInfo::Enter (TIntermNode* node)
 	StackFrame	frame;
 	frame.node			= node;
 	frame.loc.sourceId	= _GetSourceId( node->getLoc() );
-	frame.loc.begin		= SrcPoint{ uint32_t(node->getLoc().line), uint32_t(node->getLoc().column) };
+	frame.loc.begin		= SrcPoint{ uint(node->getLoc().line), uint(node->getLoc().column) };
 	frame.loc.end		= frame.loc.begin;
 
 	_callStack.push_back( frame );
@@ -297,7 +297,7 @@ TIntermSymbol*	DebugInfo::CreateStartTimeSymbolNode ()
 	uint_type.qualifier.storage		= TStorageQualifier::EvqTemporary;
 	uint_type.qualifier.precision	= TPrecisionQualifier::EpqHigh;
 
-	TIntermSymbol*	node = new TIntermSymbol{ InvalidSymbolID, TString{"dbg_StartTime_"} + std::to_string(_uniqueStartTimes.size()).c_str(), TType{uint_type} };
+	TIntermSymbol*	node = new TIntermSymbol{ InvalidSymbolID, TString{"dbg_StartTime_"} + to_string(_uniqueStartTimes.size()).c_str(), TType{uint_type} };
 
 	_uniqueStartTimes.push_back( node );
 
@@ -326,24 +326,24 @@ TIntermAggregate*  DebugInfo::GetCurrentFunction ()
 	GetSourceLocation
 =================================================
 */
-uint32_t  DebugInfo::GetSourceLocation (TIntermNode* node, const TSourceLoc &curr)
+uint  DebugInfo::GetSourceLocation (TIntermNode* node, const TSourceLoc &curr)
 {
 	VariableID	id;
-	uint32_t	swizzle;
+	uint		swizzle;
 	_GetVariableID( node, OUT id, OUT swizzle );
 
-	SrcPoint	point	{ uint32_t(curr.line), uint32_t(curr.column) };
+	SrcPoint	point	{ uint(curr.line), uint(curr.column) };
 	SrcLoc		range	= _callStack.back().loc;
-	uint32_t	src_id	= _GetSourceId( curr );
+	uint		src_id	= _GetSourceId( curr );
 
 	ASSERT( range.sourceId != ~0u );
 	ASSERT( range.sourceId == src_id );
 	
-	range.begin.value = std::min( range.begin.value, point.value );
-	range.end.value   = std::max( range.end.value,   point.value );
+	range.begin.value = min( range.begin.value, point.value );
+	range.end.value   = max( range.end.value,   point.value );
 
 	_exprLocations.push_back({ id, swizzle, range, point, {} });
-	return uint32_t(_exprLocations.size()-1);
+	return uint(_exprLocations.size()-1);
 }
 
 /*
@@ -351,17 +351,17 @@ uint32_t  DebugInfo::GetSourceLocation (TIntermNode* node, const TSourceLoc &cur
 	GetCustomSourceLocation
 =================================================
 */
-uint32_t  DebugInfo::GetCustomSourceLocation (TIntermNode* node, const TSourceLoc &curr)
+uint  DebugInfo::GetCustomSourceLocation (TIntermNode* node, const TSourceLoc &curr)
 {
 	VariableID	id;
-	uint32_t	swizzle;
+	uint		swizzle;
 	_GetVariableID( node, OUT id, OUT swizzle );
 
-	SrcLoc	range{ 0, uint32_t(curr.line), uint32_t(curr.column) };
+	SrcLoc	range{ 0, uint(curr.line), uint(curr.column) };
 	range.sourceId = _GetSourceId( curr );
 
 	_exprLocations.push_back({ id, swizzle, range, range.begin, {} });
-	return uint32_t(_exprLocations.size()-1);
+	return uint(_exprLocations.size()-1);
 }
 
 /*
@@ -369,24 +369,24 @@ uint32_t  DebugInfo::GetCustomSourceLocation (TIntermNode* node, const TSourceLo
 	GetCustomSourceLocation2
 =================================================
 */
-uint32_t  DebugInfo::GetCustomSourceLocation2 (TIntermNode* node, const TSourceLoc &begin, const TSourceLoc &end)
+uint  DebugInfo::GetCustomSourceLocation2 (TIntermNode* node, const TSourceLoc &begin, const TSourceLoc &end)
 {
 	VariableID	id;
-	uint32_t	swizzle;
+	uint		swizzle;
 	_GetVariableID( node, OUT id, OUT swizzle );
 
-	SrcLoc	range { 0, uint32_t(begin.line), uint32_t(begin.column) };
-	SrcLoc	range2{ 0, uint32_t(end.line),   uint32_t(end.column)   };
+	SrcLoc	range { 0, uint(begin.line), uint(begin.column) };
+	SrcLoc	range2{ 0, uint(end.line),   uint(end.column)   };
 	range.sourceId  = _GetSourceId( begin );
 	range2.sourceId = _GetSourceId( end );
 	
 	ASSERT( range.sourceId == range2.sourceId );
 
-	range.begin.value = std::min( range.begin.value, range2.begin.value );
-	range.end.value   = std::max( range.end.value,   range2.end.value );
+	range.begin.value = min( range.begin.value, range2.begin.value );
+	range.end.value   = max( range.end.value,   range2.end.value );
 
 	_exprLocations.push_back({ id, swizzle, range, range.begin, {} });
-	return uint32_t(_exprLocations.size()-1);
+	return uint(_exprLocations.size()-1);
 }
 
 /*
@@ -396,7 +396,7 @@ uint32_t  DebugInfo::GetCustomSourceLocation2 (TIntermNode* node, const TSourceL
 */
 void  DebugInfo::AddLocation (const TSourceLoc &loc)
 {
-	return AddLocation({ _GetSourceId( loc ), uint32_t(loc.line), uint32_t(loc.column) });
+	return AddLocation({ _GetSourceId( loc ), uint(loc.line), uint(loc.column) });
 }
 
 void  DebugInfo::AddLocation (const SrcLoc &src)
@@ -413,8 +413,8 @@ void  DebugInfo::AddLocation (const SrcLoc &src)
 	}
 
 	CHECK( src.sourceId == dst.sourceId );
-	dst.begin.value = std::min( dst.begin.value, src.begin.value );
-	dst.end.value	= std::max( dst.end.value,	 src.end.value );
+	dst.begin.value = min( dst.begin.value, src.begin.value );
+	dst.end.value	= max( dst.end.value,	 src.end.value );
 }
 
 /*
@@ -477,7 +477,7 @@ void  DebugInfo::AddSymbol (TIntermSymbol* node, bool isUserDefined)
 
 	// register symbol
 	VariableID	id;
-	uint32_t	sw;
+	uint		sw;
 	_GetVariableID( node, OUT id, OUT sw );
 }
 
@@ -577,7 +577,7 @@ inline bool  DebugInfo::FnCallLocation::operator == (const FnCallLocation &rhs) 
 */
 inline size_t  DebugInfo::FnCallLocationHash::operator () (const FnCallLocation &value) const
 {
-	size_t	fn_hash		= std::hash<std::string>{}( value.fnName );
+	size_t	fn_hash		= std::hash<string>{}( value.fnName );
 	size_t	name_hash	= value.loc.name ? std::hash<TString>{}( *value.loc.name ) : 0;
 
 	return	CombineHash( CombineHash( fn_hash, name_hash ),
@@ -612,10 +612,10 @@ inline size_t  DebugInfo::FieldInfoHash::operator () (const FieldInfo &value) co
 	GetVectorSwizzleMask
 =================================================
 */
-uint32_t  GetVectorSwizzleMask (TIntermBinary* binary)
+uint  GetVectorSwizzleMask (TIntermBinary* binary)
 {
-	std::vector<uint32_t>		sw_mask;
-	std::vector<TIntermBinary*>	swizzle_op;		swizzle_op.push_back( binary );
+	vector<uint>			sw_mask;
+	vector<TIntermBinary*>	swizzle_op;		swizzle_op.push_back( binary );
 
 	CHECK_ERR( binary and (binary->getOp() == TOperator::EOpVectorSwizzle or binary->getOp() == TOperator::EOpIndexDirect) );
 
@@ -630,7 +630,7 @@ uint32_t  GetVectorSwizzleMask (TIntermBinary* binary)
 
 	binary = swizzle_op.back();
 
-	const auto ProcessUnion = [&sw_mask] (TIntermConstantUnion *cu, const std::vector<uint32_t> &mask) -> bool
+	const auto ProcessUnion = [&sw_mask] (TIntermConstantUnion *cu, const vector<uint> &mask) -> bool
 	{
 		TConstUnionArray const&	cu_arr = cu->getConstArray();
 		CHECK_ERR( cu_arr.size() == 1 and cu->getType().getBasicType() == EbtInt );
@@ -646,8 +646,8 @@ uint32_t  GetVectorSwizzleMask (TIntermBinary* binary)
 	// optimize swizzle
 	for (auto iter = swizzle_op.rbegin(); iter != swizzle_op.rend(); ++iter)
 	{
-		TIntermBinary*				bin		= (*iter);
-		const std::vector<uint32_t>	mask	= sw_mask;
+		TIntermBinary*		bin		= (*iter);
+		const vector<uint>	mask	= sw_mask;
 
 		sw_mask.clear();
 
@@ -670,8 +670,8 @@ uint32_t  GetVectorSwizzleMask (TIntermBinary* binary)
 			RETURN_ERR( "not supported!" );
 	}
 
-	uint32_t	result	= 0;
-	uint32_t	shift	= 0;
+	uint	result	= 0;
+	uint	shift	= 0;
 	for (auto& idx : sw_mask)
 	{
 		result |= ((idx + 1) << shift);
@@ -685,14 +685,14 @@ uint32_t  GetVectorSwizzleMask (TIntermBinary* binary)
 	_GetVariableID
 =================================================
 */
-void  DebugInfo::_GetVariableID (TIntermNode* node, OUT VariableID &id, OUT uint32_t &swizzle)
+void  DebugInfo::_GetVariableID (TIntermNode* node, OUT VariableID &id, OUT uint &swizzle)
 {
 	CHECK_ERR( node, void());
 
 	id = VariableID(~0u);
 	swizzle = 0;
 
-	const VariableID	new_id = VariableID(uint32_t(_varInfos.size() + _fnCallMap.size() + _fieldMap.size()));
+	const VariableID	new_id = VariableID(uint(_varInfos.size() + _fnCallMap.size() + _fieldMap.size()));
 
 	if ( TIntermSymbol* symb = node->getAsSymbolNode() )
 	{
@@ -721,7 +721,7 @@ void  DebugInfo::_GetVariableID (TIntermNode* node, OUT VariableID &id, OUT uint
 		{
 			swizzle = GetVectorSwizzleMask( binary );
 
-			uint32_t	temp;
+			uint	temp;
 			return _GetVariableID( binary->getLeft(), OUT id, OUT temp );
 		}
 		else
@@ -731,7 +731,7 @@ void  DebugInfo::_GetVariableID (TIntermNode* node, OUT VariableID &id, OUT uint
 		{
 			swizzle = GetVectorSwizzleMask( binary );
 
-			uint32_t	temp;
+			uint	temp;
 			return _GetVariableID( binary->getLeft(), OUT id, OUT temp );
 		}
 		else
@@ -741,7 +741,7 @@ void  DebugInfo::_GetVariableID (TIntermNode* node, OUT VariableID &id, OUT uint
 		{
 			swizzle = 0;	// TODO
 
-			uint32_t	temp;
+			uint	temp;
 			return _GetVariableID( binary->getLeft(), OUT id, OUT temp );
 		}
 		else
@@ -789,7 +789,7 @@ void  DebugInfo::_GetVariableID (TIntermNode* node, OUT VariableID &id, OUT uint
 	_GetSourceId
 =================================================
 */
-uint32_t  DebugInfo::_GetSourceId (const TSourceLoc &loc) const
+uint  DebugInfo::_GetSourceId (const TSourceLoc &loc) const
 {
 	if ( loc.name )
 	{
@@ -843,9 +843,9 @@ bool  DebugInfo::PostProcess (OUT VarNames_t &varNames)
 
 			for (auto& loc : info.locations)
 			{
-				uint32_t	loc_line	= uint32_t(loc.line);
-				uint32_t	loc_column	= uint32_t(loc.column);
-				uint32_t	source_id	= _GetSourceId( loc );
+				uint	loc_line	= uint(loc.line);
+				uint	loc_column	= uint(loc.column);
+				uint	source_id	= _GetSourceId( loc );
 
 				if ( source_id == 0 and loc_line == 0 and loc_column == 0 )
 					continue;	// skip undefined location
@@ -898,7 +898,7 @@ bool  ProcessFunctionDefinition (TIntermAggregate* node, DebugInfo &dbgInfo);
 bool  ProcessFunctionDefinition2 (TIntermAggregate* node, DebugInfo &dbgInfo);
 bool  RecursiveProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo);
 TIntermBinary*     AssignClock (TIntermSymbol* dst, const TSourceLoc &loc, DebugInfo &dbgInfo);
-TIntermAggregate*  CreateAppendToTrace (TIntermTyped* exprNode, uint32_t sourceLoc, DebugInfo &dbgInfo);
+TIntermAggregate*  CreateAppendToTrace (TIntermTyped* exprNode, uint sourceLoc, DebugInfo &dbgInfo);
 TIntermAggregate*  CreateAddTimeToTrace2 (TIntermSymbol* startTimeNode, DebugInfo &dbgInfo);
 TIntermAggregate*  CreateAddTimeToTrace (TIntermTyped* exprNode, TIntermSymbol* startTimeNode, DebugInfo &dbgInfo);
 
@@ -1067,13 +1067,13 @@ void  CreateComputeShaderDebugStorage (TTypeList* typeList, INOUT TPublicType &t
 	type.basicType = TBasicType::EbtUint;
 	
 	TType*	thread_id_x	= new TType{type};		thread_id_x->setFieldName( "globalInvocationX" );
-	type.qualifier.layoutOffset += sizeof(uint32_t);
+	type.qualifier.layoutOffset += sizeof(uint);
 	
 	TType*	thread_id_y	= new TType{type};		thread_id_y->setFieldName( "globalInvocationY" );
-	type.qualifier.layoutOffset += sizeof(uint32_t);
+	type.qualifier.layoutOffset += sizeof(uint);
 	
 	TType*	thread_id_z	= new TType{type};		thread_id_z->setFieldName( "globalInvocationZ" );
-	type.qualifier.layoutOffset += sizeof(uint32_t);
+	type.qualifier.layoutOffset += sizeof(uint);
 	
 	typeList->push_back({ thread_id_x,	TSourceLoc{} });
 	typeList->push_back({ thread_id_y,	TSourceLoc{} });
@@ -1090,13 +1090,13 @@ void  CreateRayTracingShaderDebugStorage (TTypeList* typeList, INOUT TPublicType
 	type.basicType = TBasicType::EbtUint;
 	
 	TType*	thread_id_x	= new TType{type};		thread_id_x->setFieldName( "launchID_x" );
-	type.qualifier.layoutOffset += sizeof(uint32_t);
+	type.qualifier.layoutOffset += sizeof(uint);
 	
 	TType*	thread_id_y	= new TType{type};		thread_id_y->setFieldName( "launchID_y" );
-	type.qualifier.layoutOffset += sizeof(uint32_t);
+	type.qualifier.layoutOffset += sizeof(uint);
 	
 	TType*	thread_id_z	= new TType{type};		thread_id_z->setFieldName( "launchID_z" );
-	type.qualifier.layoutOffset += sizeof(uint32_t);
+	type.qualifier.layoutOffset += sizeof(uint);
 	
 	typeList->push_back({ thread_id_x,	TSourceLoc{} });
 	typeList->push_back({ thread_id_y,	TSourceLoc{} });
@@ -1108,7 +1108,7 @@ void  CreateRayTracingShaderDebugStorage (TTypeList* typeList, INOUT TPublicType
 	CreateShaderDebugStorage
 =================================================
 */
-void  CreateShaderDebugStorage (uint32_t setIndex, DebugInfo &dbgInfo, OUT uint64_t &posOffset, OUT uint64_t &dataOffset)
+void  CreateShaderDebugStorage (uint setIndex, DebugInfo &dbgInfo, OUT uint64_t &posOffset, OUT uint64_t &dataOffset)
 {
 	// "layout(binding=x, std430) buffer dbg_ShaderTraceStorage { ... } dbg_ShaderTrace"
 	
@@ -1153,7 +1153,7 @@ void  CreateShaderDebugStorage (uint32_t setIndex, DebugInfo &dbgInfo, OUT uint6
 
 	TType*			position	= new TType{uint_type};		position->setFieldName( "position" );
 	
-	uint_type.qualifier.layoutOffset += sizeof(uint32_t);
+	uint_type.qualifier.layoutOffset += sizeof(uint);
 	uint_type.arraySizes			 = new TArraySizes{};
 	uint_type.arraySizes->addInnerSize();
 	
@@ -1382,7 +1382,7 @@ TIntermAggregate*  CreateAppendToTraceBody2 (DebugInfo &dbgInfo)
 	uint_type.qualifier.storage = TStorageQualifier::EvqConstReadOnly;
 
 	// last_pos, location, size, value
-	const uint32_t		dbg_data_size = 3;
+	const uint			dbg_data_size = 3;
 
 	TIntermAggregate*	fn_node		= new TIntermAggregate{ TOperator::EOpFunction };
 	TIntermAggregate*	fn_args		= new TIntermAggregate{ TOperator::EOpParameters };
@@ -1441,7 +1441,7 @@ TIntermAggregate*  CreateAppendToTraceBody2 (DebugInfo &dbgInfo)
 	// "dbg_ShaderTrace.outData[pos++] = ..."
 	{
 		uint_type.qualifier.storage = TStorageQualifier::EvqConst;
-		TConstUnionArray		type_value(1);	type_value[0].setUConst( (uint32_t(TBasicType::EbtVoid) & 0xFF) );
+		TConstUnionArray		type_value(1);	type_value[0].setUConst( (uint(TBasicType::EbtVoid) & 0xFF) );
 		TIntermConstantUnion*	type_id			= new TIntermConstantUnion{ type_value, TType{uint_type} };
 		TConstUnionArray		const_value(1);	const_value[0].setUConst( 1 );
 		TIntermConstantUnion*	const_one		= new TIntermConstantUnion{ const_value, TType{uint_type} };
@@ -1571,7 +1571,7 @@ TIntermAggregate*  CreateAppendToTraceBody (const TString &fnName, DebugInfo &db
 	}
 
 	// last_pos, location, size, value
-	const uint32_t		dbg_data_size = (value_type.matrixCols * value_type.matrixRows + value_type.vectorSize) * scale + 3;
+	const uint			dbg_data_size = (value_type.matrixCols * value_type.matrixRows + value_type.vectorSize) * scale + 3;
 
 	TIntermAggregate*	fn_node		= new TIntermAggregate{ TOperator::EOpFunction };
 	TIntermAggregate*	fn_args		= new TIntermAggregate{ TOperator::EOpParameters };
@@ -1640,7 +1640,7 @@ TIntermAggregate*  CreateAppendToTraceBody (const TString &fnName, DebugInfo &db
 	// "dbg_ShaderTrace.outData[pos++] = ..."
 	{
 		uint_type.qualifier.storage = TStorageQualifier::EvqConst;
-		TConstUnionArray		type_value(1);	type_value[0].setUConst( (uint32_t(value_type.basicType) & 0xFF) | ((value_type.vectorSize & 0xF) << 8) |
+		TConstUnionArray		type_value(1);	type_value[0].setUConst( (uint(value_type.basicType) & 0xFF) | ((value_type.vectorSize & 0xF) << 8) |
 																		 ((value_type.matrixRows & 0xF) << 8) | ((value_type.matrixCols & 0xF) << 12) );
 		TIntermConstantUnion*	type_id			= new TIntermConstantUnion{ type_value, TType{uint_type} };
 		TConstUnionArray		const_value(1);	const_value[0].setUConst( 1 );
@@ -1928,7 +1928,7 @@ TIntermAggregate*  CreateAddTimeToTraceBody2 (DebugInfo &dbgInfo)
 	uint_type.qualifier.storage = TStorageQualifier::EvqConstReadOnly;
 
 	// last_pos, location, size, startTime, endTime
-	const uint32_t		dbg_data_size = 3 + 4 + 4;
+	const uint			dbg_data_size = 3 + 4 + 4;
 
 	TIntermAggregate*	fn_node		= new TIntermAggregate{ TOperator::EOpFunction };
 	TIntermAggregate*	fn_args		= new TIntermAggregate{ TOperator::EOpParameters };
@@ -2168,7 +2168,7 @@ TIntermAggregate*  CreateAddTimeToTraceBody (const TString &fnName, DebugInfo &d
 	}
 
 	// last_pos, location, size, startTime, endTime
-	const uint32_t		dbg_data_size = 3 + 4 + 4;
+	const uint			dbg_data_size = 3 + 4 + 4;
 
 	TIntermAggregate*	fn_node		= new TIntermAggregate{ TOperator::EOpFunction };
 	TIntermAggregate*	fn_args		= new TIntermAggregate{ TOperator::EOpParameters };
@@ -2545,7 +2545,7 @@ bool  AppendShaderInputVaryings (TIntermAggregate* body, DebugInfo &dbgInfo)
 				field_access->setLeft( symb );
 				field_access->setRight( field_index );
 
-				const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( field_access, symb->getLoc()/*field.loc*/ );
+				const uint	loc_id = dbgInfo.GetCustomSourceLocation( field_access, symb->getLoc()/*field.loc*/ );
 
 				if ( auto* fncall = CreateAppendToTrace( field_access, loc_id, dbgInfo ))
 					body->getSequence().push_back( fncall );
@@ -2554,7 +2554,7 @@ bool  AppendShaderInputVaryings (TIntermAggregate* body, DebugInfo &dbgInfo)
 		else
 		if ( symb->isScalar() or symb->isVector() or symb->isMatrix() )
 		{
-			const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( symb, symb->getLoc() );
+			const uint	loc_id = dbgInfo.GetCustomSourceLocation( symb, symb->getLoc() );
 
 			if ( auto* fncall = CreateAppendToTrace( symb, loc_id, dbgInfo ))
 				body->getSequence().push_back( fncall );
@@ -2577,7 +2577,7 @@ TIntermAggregate*  RecordVertexShaderInfo (const TSourceLoc &loc, DebugInfo &dbg
 	// "dbg_AppendToTrace( gl_VertexIndex, location )"
 	{
 		TIntermSymbol*	vert_index	= dbgInfo.GetCachedSymbolNode( "gl_VertexIndex" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( vert_index, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( vert_index, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( vert_index, loc_id, dbgInfo ));
 	}
@@ -2585,7 +2585,7 @@ TIntermAggregate*  RecordVertexShaderInfo (const TSourceLoc &loc, DebugInfo &dbg
 	// "dbg_AppendToTrace( gl_InstanceIndex, location )"
 	{
 		TIntermSymbol*	instance	= dbgInfo.GetCachedSymbolNode( "gl_InstanceIndex" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( instance, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( instance, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( instance, loc_id, dbgInfo ));
 	}
@@ -2593,7 +2593,7 @@ TIntermAggregate*  RecordVertexShaderInfo (const TSourceLoc &loc, DebugInfo &dbg
 	// "dbg_AppendToTrace( gl_DrawID, location )"
 	if ( auto* draw_id = dbgInfo.GetCachedSymbolNode( "gl_DrawID" ) )
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( draw_id, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( draw_id, loc );
 		body->getSequence().push_back( CreateAppendToTrace( draw_id, loc_id, dbgInfo ));
 	}
 
@@ -2613,7 +2613,7 @@ TIntermAggregate*  RecordTessControlShaderInfo (const TSourceLoc &loc, DebugInfo
 	// "dbg_AppendToTrace( gl_InvocationID, location )"
 	{
 		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_InvocationID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
@@ -2621,7 +2621,7 @@ TIntermAggregate*  RecordTessControlShaderInfo (const TSourceLoc &loc, DebugInfo
 	// "dbg_AppendToTrace( gl_PrimitiveID, location )"
 	{
 		TIntermSymbol*	primitive	= dbgInfo.GetCachedSymbolNode( "gl_PrimitiveID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( primitive, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( primitive, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( primitive, loc_id, dbgInfo ));
 	}
@@ -2642,7 +2642,7 @@ TIntermAggregate*  RecordTessEvaluationShaderInfo (const TSourceLoc &loc, DebugI
 	// "dbg_AppendToTrace( gl_PrimitiveID, location )"
 	{
 		TIntermSymbol*	primitive	= dbgInfo.GetCachedSymbolNode( "gl_PrimitiveID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( primitive, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( primitive, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( primitive, loc_id, dbgInfo ));
 	}
@@ -2650,7 +2650,7 @@ TIntermAggregate*  RecordTessEvaluationShaderInfo (const TSourceLoc &loc, DebugI
 	// "dbg_AppendToTrace( gl_TessCoord, location )"
 	{
 		TIntermSymbol*	tess_coord	= dbgInfo.GetCachedSymbolNode( "gl_TessCoord" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( tess_coord, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( tess_coord, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( tess_coord, loc_id, dbgInfo ));
 	}
@@ -2662,7 +2662,7 @@ TIntermAggregate*  RecordTessEvaluationShaderInfo (const TSourceLoc &loc, DebugI
 	// "dbg_AppendToTrace( gl_TessLevelInner, location )"
 	{
 		TIntermSymbol*		inner_level	= dbgInfo.GetCachedSymbolNode( "gl_TessLevelInner" );
-		const uint32_t		loc_id		= dbgInfo.GetCustomSourceLocation( inner_level, loc );
+		const uint			loc_id		= dbgInfo.GetCustomSourceLocation( inner_level, loc );
 		TIntermAggregate*	vec2_ctor	= new TIntermAggregate{ TOperator::EOpConstructVec2 };
 		TPublicType			float_type;	float_type.init({});
 		float_type.basicType			= TBasicType::EbtFloat;
@@ -2691,7 +2691,7 @@ TIntermAggregate*  RecordTessEvaluationShaderInfo (const TSourceLoc &loc, DebugI
 	// "dbg_AppendToTrace( gl_TessLevelOuter, location )"
 	{
 		TIntermSymbol*		outer_level	= dbgInfo.GetCachedSymbolNode( "gl_TessLevelOuter" );
-		const uint32_t		loc_id		= dbgInfo.GetCustomSourceLocation( outer_level, loc );
+		const uint			loc_id		= dbgInfo.GetCustomSourceLocation( outer_level, loc );
 		TIntermAggregate*	vec4_ctor	= new TIntermAggregate{ TOperator::EOpConstructVec4 };
 		TPublicType			float_type;	float_type.init({});
 		float_type.basicType			= TBasicType::EbtFloat;
@@ -2733,7 +2733,7 @@ TIntermAggregate*  RecordGeometryShaderInfo (const TSourceLoc &loc, DebugInfo &d
 	// "dbg_AppendToTrace( gl_InvocationID, location )"
 	{
 		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_InvocationID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
@@ -2741,7 +2741,7 @@ TIntermAggregate*  RecordGeometryShaderInfo (const TSourceLoc &loc, DebugInfo &d
 	// "dbg_AppendToTrace( gl_PrimitiveIDIn, location )"
 	{
 		TIntermSymbol*	primitive	= dbgInfo.GetCachedSymbolNode( "gl_PrimitiveIDIn" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( primitive, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( primitive, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( primitive, loc_id, dbgInfo ));
 	}
@@ -2762,7 +2762,7 @@ TIntermAggregate*  RecordFragmentShaderInfo (const TSourceLoc &loc, DebugInfo &d
 	// "dbg_AppendToTrace( gl_FragCoord, location )"
 	{
 		TIntermSymbol*	fragcoord	= dbgInfo.GetCachedSymbolNode( "gl_FragCoord" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( fragcoord, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( fragcoord, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( fragcoord, loc_id, dbgInfo ));
 	}
@@ -2770,21 +2770,21 @@ TIntermAggregate*  RecordFragmentShaderInfo (const TSourceLoc &loc, DebugInfo &d
 	// "dbg_AppendToTrace( gl_SampleID, location )"
 	if ( TIntermSymbol*  sample_id = dbgInfo.GetCachedSymbolNode( "gl_SampleID" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( sample_id, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( sample_id, loc );
 		body->getSequence().push_back( CreateAppendToTrace( sample_id, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_SamplePosition, location )"
 	if ( TIntermSymbol*  sample_pos = dbgInfo.GetCachedSymbolNode( "gl_SamplePosition" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( sample_pos, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( sample_pos, loc );
 		body->getSequence().push_back( CreateAppendToTrace( sample_pos, loc_id, dbgInfo ));
 	}
 	
 	// "dbg_AppendToTrace( gl_PrimitiveID, location )"
 	{
 		TIntermSymbol*	primitive_id	= dbgInfo.GetCachedSymbolNode( "gl_PrimitiveID" );
-		const uint32_t	loc_id			= dbgInfo.GetCustomSourceLocation( primitive_id, loc );
+		const uint		loc_id			= dbgInfo.GetCustomSourceLocation( primitive_id, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( primitive_id, loc_id, dbgInfo ));
 	}
@@ -2792,21 +2792,21 @@ TIntermAggregate*  RecordFragmentShaderInfo (const TSourceLoc &loc, DebugInfo &d
 	// "dbg_AppendToTrace( gl_SamplePosition, location )"
 	if ( TIntermSymbol*  layer = dbgInfo.GetCachedSymbolNode( "gl_Layer" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( layer, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( layer, loc );
 		body->getSequence().push_back( CreateAppendToTrace( layer, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ViewportIndex, location )"
 	if ( TIntermSymbol*  viewport_idx = dbgInfo.GetCachedSymbolNode( "gl_ViewportIndex" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( viewport_idx, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( viewport_idx, loc );
 		body->getSequence().push_back( CreateAppendToTrace( viewport_idx, loc_id, dbgInfo ));
 	}
 	
 	// "dbg_AppendToTrace( gl_SubgroupInvocationID, location )"
 	if ( auto* invocation = dbgInfo.GetCachedSymbolNode( "gl_SubgroupInvocationID" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( invocation, loc );
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
 
@@ -2828,7 +2828,7 @@ TIntermAggregate*  RecordComputeShaderInfo (const TSourceLoc &loc, DebugInfo &db
 	// "dbg_AppendToTrace( gl_GlobalInvocationID, location )"
 	{
 		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_GlobalInvocationID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
@@ -2836,7 +2836,7 @@ TIntermAggregate*  RecordComputeShaderInfo (const TSourceLoc &loc, DebugInfo &db
 	// "dbg_AppendToTrace( gl_LocalInvocationID, location )"
 	{
 		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LocalInvocationID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
@@ -2844,7 +2844,7 @@ TIntermAggregate*  RecordComputeShaderInfo (const TSourceLoc &loc, DebugInfo &db
 	// "dbg_AppendToTrace( gl_WorkGroupID, location )"
 	{
 		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_WorkGroupID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
@@ -2852,14 +2852,14 @@ TIntermAggregate*  RecordComputeShaderInfo (const TSourceLoc &loc, DebugInfo &db
 	// "dbg_AppendToTrace( gl_SubgroupID, location )"
 	if ( auto* invocation = dbgInfo.GetCachedSymbolNode( "gl_SubgroupID" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( invocation, loc );
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_SubgroupInvocationID, location )"
 	if ( auto* invocation = dbgInfo.GetCachedSymbolNode( "gl_SubgroupInvocationID" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( invocation, loc );
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
 
@@ -2879,7 +2879,7 @@ TIntermAggregate*  RecordRayGenShaderInfo (const TSourceLoc &loc, DebugInfo &dbg
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
 		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LaunchID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
@@ -2899,7 +2899,7 @@ TIntermAggregate*  RecordHitShaderInfo (const TSourceLoc &loc, DebugInfo &dbgInf
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
 		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LaunchID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
@@ -2907,98 +2907,98 @@ TIntermAggregate*  RecordHitShaderInfo (const TSourceLoc &loc, DebugInfo &dbgInf
 	// "dbg_AppendToTrace( gl_PrimitiveID, location )"
 	if ( auto* primitive = dbgInfo.GetCachedSymbolNode( "gl_PrimitiveID" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( primitive, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( primitive, loc );
 		body->getSequence().push_back( CreateAppendToTrace( primitive, loc_id, dbgInfo ));
 	}
 	
 	// "dbg_AppendToTrace( gl_InstanceID, location )"
 	if ( auto* instance = dbgInfo.GetCachedSymbolNode( "gl_InstanceID" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( instance, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( instance, loc );
 		body->getSequence().push_back( CreateAppendToTrace( instance, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_InstanceCustomIndex, location )"
 	if ( auto* instance_index = dbgInfo.GetCachedSymbolNode( "gl_InstanceCustomIndex" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( instance_index, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( instance_index, loc );
 		body->getSequence().push_back( CreateAppendToTrace( instance_index, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayOrigin, location )"
 	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_WorldRayOrigin" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayDirection, location )"
 	if ( auto* world_ray_direction = dbgInfo.GetCachedSymbolNode( "gl_WorldRayDirection" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_direction, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_direction, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayOrigin, location )"
 	if ( auto* object_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayOrigin" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_origin, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayDirection, location )"
 	if ( auto* object_ray_direction = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayDirection" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_direction, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_direction, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmin, location )"
 	if ( auto* ray_tmin = dbgInfo.GetCachedSymbolNode( "gl_RayTmin" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmin, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmax, location )"
 	if ( auto* ray_tmax = dbgInfo.GetCachedSymbolNode( "gl_RayTmax" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmax, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmax, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmax, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_IncomingRayFlags, location )"
 	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( "gl_IncomingRayFlags" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
 		body->getSequence().push_back( CreateAppendToTrace( incoming_ray_flags, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_HitT, location )"
 	if ( auto* hit_t = dbgInfo.GetCachedSymbolNode( "gl_HitT" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( hit_t, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( hit_t, loc );
 		body->getSequence().push_back( CreateAppendToTrace( hit_t, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_HitKind, location )"
 	if ( auto* hit_kind = dbgInfo.GetCachedSymbolNode( "gl_HitKind" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( hit_kind, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( hit_kind, loc );
 		body->getSequence().push_back( CreateAppendToTrace( hit_kind, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectToWorld, location )"
 	if ( auto* object_to_world = dbgInfo.GetCachedSymbolNode( "gl_ObjectToWorld" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( object_to_world, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_to_world, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_to_world, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldToObject, location )"
 	if ( auto* world_to_object = dbgInfo.GetCachedSymbolNode( "gl_WorldToObject" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( world_to_object, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_to_object, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_to_object, loc_id, dbgInfo ));
 	}
 	return body;
@@ -3017,7 +3017,7 @@ TIntermAggregate*  RecordIntersectionShaderInfo (const TSourceLoc &loc, DebugInf
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
 		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LaunchID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
@@ -3025,84 +3025,84 @@ TIntermAggregate*  RecordIntersectionShaderInfo (const TSourceLoc &loc, DebugInf
 	// "dbg_AppendToTrace( gl_PrimitiveID, location )"
 	if ( auto* primitive = dbgInfo.GetCachedSymbolNode( "gl_PrimitiveID" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( primitive, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( primitive, loc );
 		body->getSequence().push_back( CreateAppendToTrace( primitive, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_InstanceID, location )"
 	if ( auto* instance = dbgInfo.GetCachedSymbolNode( "gl_InstanceID" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( instance, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( instance, loc );
 		body->getSequence().push_back( CreateAppendToTrace( instance, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_InstanceCustomIndex, location )"
 	if ( auto* instance_index = dbgInfo.GetCachedSymbolNode( "gl_InstanceCustomIndex" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( instance_index, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( instance_index, loc );
 		body->getSequence().push_back( CreateAppendToTrace( instance_index, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayOrigin, location )"
 	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_WorldRayOrigin" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayDirection, location )"
 	if ( auto* world_ray_dir = dbgInfo.GetCachedSymbolNode( "gl_WorldRayDirection" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_dir, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_dir, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_dir, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayOrigin, location )"
 	if ( auto* object_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayOrigin" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_origin, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayDirection, location )"
 	if ( auto* object_ray_dir = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayDirection" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_dir, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_dir, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_dir, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmin, location )"
 	if ( auto* ray_tmin = dbgInfo.GetCachedSymbolNode( "gl_RayTmin" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmin, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmax, location )"
 	if ( auto* ray_tmax = dbgInfo.GetCachedSymbolNode( "gl_RayTmax" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmax, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmax, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmax, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_IncomingRayFlags, location )"
 	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( "gl_IncomingRayFlags" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
 		body->getSequence().push_back( CreateAppendToTrace( incoming_ray_flags, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectToWorld, location )"
 	if ( auto* object_to_world = dbgInfo.GetCachedSymbolNode( "gl_ObjectToWorld" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( object_to_world, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_to_world, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_to_world, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldToObject, location )"
 	if ( auto* world_to_object = dbgInfo.GetCachedSymbolNode( "gl_WorldToObject" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( world_to_object, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_to_object, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_to_object, loc_id, dbgInfo ));
 	}
 	return body;
@@ -3121,7 +3121,7 @@ TIntermAggregate*  RecordMissShaderInfo (const TSourceLoc &loc, DebugInfo &dbgIn
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
 		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LaunchID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
@@ -3129,28 +3129,28 @@ TIntermAggregate*  RecordMissShaderInfo (const TSourceLoc &loc, DebugInfo &dbgIn
 	// "dbg_AppendToTrace( gl_WorldRayOrigin, location )"
 	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_WorldRayOrigin" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayDirection, location )"
 	if ( auto* world_ray_direction = dbgInfo.GetCachedSymbolNode( "gl_WorldRayDirection" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_direction, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_direction, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayOrigin, location )"
 	if ( auto* obj_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayOrigin" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( obj_ray_origin, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( obj_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( obj_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayDirection, location )"
 	if ( auto* obj_ray_direction = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayDirection" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( obj_ray_direction, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( obj_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( obj_ray_direction, loc_id, dbgInfo ));
 	}
 	return body;
@@ -3169,7 +3169,7 @@ TIntermAggregate*  RecordCallableShaderInfo (const TSourceLoc &loc, DebugInfo &d
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
 		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LaunchID" );
-		const uint32_t	loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
+		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
@@ -3177,7 +3177,7 @@ TIntermAggregate*  RecordCallableShaderInfo (const TSourceLoc &loc, DebugInfo &d
 	// "dbg_AppendToTrace( gl_IncomingRayFlags, location )"
 	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( "gl_IncomingRayFlags" ))
 	{
-		const uint32_t	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
+		const uint	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
 		body->getSequence().push_back( CreateAppendToTrace( incoming_ray_flags, loc_id, dbgInfo ));
 	}
 	return body;
@@ -3488,7 +3488,7 @@ TIntermOperator*  CreateRayTracingShaderIsDebugInvocation (DebugInfo &dbgInfo)
 	InsertGlobalVariablesAndBuffers
 =================================================
 */
-bool  InsertGlobalVariablesAndBuffers (TIntermAggregate* linkerObjs, TIntermAggregate* globalVars, uint32_t initialPosition, DebugInfo &dbgInfo)
+bool  InsertGlobalVariablesAndBuffers (TIntermAggregate* linkerObjs, TIntermAggregate* globalVars, uint initialPosition, DebugInfo &dbgInfo)
 {
 	// "bool dbg_IsEnabled"
 	TPublicType		type;	type.init({});
@@ -3627,7 +3627,7 @@ bool  CreateEnableIfBody (TIntermAggregate* fnDecl, DebugInfo &dbgInfo)
 	CreateDebugTraceFunctions
 =================================================
 */
-bool  CreateDebugTraceFunctions (TIntermNode* root, uint32_t initialPosition, DebugInfo &dbgInfo)
+bool  CreateDebugTraceFunctions (TIntermNode* root, uint initialPosition, DebugInfo &dbgInfo)
 {
 	TIntermAggregate*	aggr = root->getAsAggregate();
 	CHECK_ERR( aggr );
@@ -3738,7 +3738,7 @@ bool  CreateDebugTraceFunctions (TIntermNode* root, uint32_t initialPosition, De
 	also see 'CreateAppendToTraceBody2()'
 =================================================
 */
-TIntermAggregate*  CreateAppendToTrace2 (uint32_t sourceLoc, DebugInfo &dbgInfo)
+TIntermAggregate*  CreateAppendToTrace2 (uint sourceLoc, DebugInfo &dbgInfo)
 {
 	TIntermAggregate*	fcall = new TIntermAggregate( TOperator::EOpFunctionCall );
 
@@ -3772,10 +3772,10 @@ TIntermAggregate*  CreateAppendToTrace2 (uint32_t sourceLoc, DebugInfo &dbgInfo)
 	also see 'CreateAppendToTraceBody()'
 =================================================
 */
-TIntermAggregate*  CreateAppendToTrace (TIntermTyped* exprNode, uint32_t sourceLoc, DebugInfo &dbgInfo)
+TIntermAggregate*  CreateAppendToTrace (TIntermTyped* exprNode, uint sourceLoc, DebugInfo &dbgInfo)
 {
 	TIntermAggregate*	fcall		= new TIntermAggregate( TOperator::EOpFunctionCall );
-	std::string			type_name;
+	string			type_name;
 	const TType &		type		= exprNode->getType();
 
 	BEGIN_ENUM_CHECKS();
@@ -3813,10 +3813,10 @@ TIntermAggregate*  CreateAppendToTrace (TIntermTyped* exprNode, uint32_t sourceL
 		RETURN_ERR( "arrays is not supported yet" )
 	else
 	if ( type.isMatrix() )
-		type_name = "m" + type_name + std::to_string(type.getMatrixCols()) + std::to_string(type.getMatrixRows());
+		type_name = "m" + type_name + to_string(type.getMatrixCols()) + to_string(type.getMatrixRows());
 	else
 	if ( type.isVector() )
-		type_name = "v" + type_name + std::to_string(type.getVectorSize());
+		type_name = "v" + type_name + to_string(type.getVectorSize());
 	else
 	if ( type.isScalarOrVec1() )
 		type_name += "1";
@@ -3871,7 +3871,7 @@ TIntermAggregate*  CreateAddTimeToTrace2 (TIntermSymbol* startTimeNode, DebugInf
 	auto	end_loc = startTimeNode->getLoc();
 	end_loc.column = 0;
 
-	const uint32_t			source_loc		= dbgInfo.GetCustomSourceLocation2( startTimeNode, startTimeNode->getLoc(), end_loc );
+	const uint				source_loc		= dbgInfo.GetCustomSourceLocation2( startTimeNode, startTimeNode->getLoc(), end_loc );
 	TConstUnionArray		loc_value(1);	loc_value[0].setUConst( source_loc );
 	TIntermConstantUnion*	loc_const		= new TIntermConstantUnion{ loc_value, TType{uint_type} };
 	
@@ -3896,7 +3896,7 @@ TIntermAggregate*  CreateAddTimeToTrace2 (TIntermSymbol* startTimeNode, DebugInf
 TIntermAggregate*  CreateAddTimeToTrace (TIntermTyped* exprNode, TIntermSymbol* startTimeNode, DebugInfo &dbgInfo)
 {
 	TIntermAggregate*	fcall		= new TIntermAggregate( TOperator::EOpFunctionCall );
-	std::string			type_name;
+	string			type_name;
 	const TType &		type		= exprNode->getType();
 
 	BEGIN_ENUM_CHECKS();
@@ -3934,10 +3934,10 @@ TIntermAggregate*  CreateAddTimeToTrace (TIntermTyped* exprNode, TIntermSymbol* 
 		RETURN_ERR( "arrays is not supported yet" )
 	else
 	if ( type.isMatrix() )
-		type_name = "m" + type_name + std::to_string(type.getMatrixCols()) + std::to_string(type.getMatrixRows());
+		type_name = "m" + type_name + to_string(type.getMatrixCols()) + to_string(type.getMatrixRows());
 	else
 	if ( type.isVector() )
-		type_name = "v" + type_name + std::to_string(type.getVectorSize());
+		type_name = "v" + type_name + to_string(type.getVectorSize());
 	else
 	if ( type.isScalarOrVec1() )
 		type_name += "1";
@@ -3961,7 +3961,7 @@ TIntermAggregate*  CreateAddTimeToTrace (TIntermTyped* exprNode, TIntermSymbol* 
 	auto	end_loc = startTimeNode->getLoc();
 	end_loc.column = 0;
 
-	const uint32_t			source_loc		= dbgInfo.GetCustomSourceLocation2( startTimeNode, startTimeNode->getLoc(), end_loc );
+	const uint				source_loc		= dbgInfo.GetCustomSourceLocation2( startTimeNode, startTimeNode->getLoc(), end_loc );
 	TConstUnionArray		loc_value(1);	loc_value[0].setUConst( source_loc );
 	TIntermConstantUnion*	loc_const		= new TIntermConstantUnion{ loc_value, TType{uint_type} };
 	
@@ -4049,7 +4049,7 @@ bool  ProcessFunctionDefinition2 (TIntermAggregate* node, DebugInfo &dbgInfo)
 	TIntermSymbol*		start_time	= dbgInfo.GetStartTime();
 	CHECK_ERR( start_time );
 	
-	const uint32_t		loc_id		= dbgInfo.GetSourceLocation( last_node, last_node->getLoc() );
+	const uint			loc_id		= dbgInfo.GetSourceLocation( last_node, last_node->getLoc() );
 
 	body->getSequence().push_back( CreateAddTimeToTrace2( start_time, dbgInfo ));
 
@@ -4147,7 +4147,7 @@ bool  RecursiveProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 	InsertFunctionProfiler
 =================================================
 */
-bool  ShaderTrace::InsertFunctionProfiler (TIntermediate &intermediate, uint32_t setIndex, bool shaderSubgroupClock, bool shaderDeviceClock)
+bool  ShaderTrace::InsertFunctionProfiler (TIntermediate &intermediate, uint setIndex, bool shaderSubgroupClock, bool shaderDeviceClock)
 {
 	//CHECK_ERR( shaderSubgroupClock or shaderDeviceClock );
 
@@ -4162,7 +4162,7 @@ bool  ShaderTrace::InsertFunctionProfiler (TIntermediate &intermediate, uint32_t
 	TIntermNode*	root = intermediate.getTreeRoot();
 	CHECK_ERR( root );
 
-	_initialPosition = uint32_t(CombineHash( std::hash<void*>{}( this ), setIndex+1 ));
+	_initialPosition = uint(CombineHash( std::hash<void*>{}( this ), setIndex+1 ));
 	ASSERT( _initialPosition != 0 );
 	_initialPosition |= 0x80000000u;
 

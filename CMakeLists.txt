@@ -51,11 +51,13 @@ if (TRUE)
 	endforeach ()
 endif ()
 
+include( "cmake/download_vk.cmake" )
 include( "cmake/download_glslang.cmake" )
 include( "cmake/project_template.cmake" )
 add_subdirectory( "shader_trace" )
 
 if (${ENABLE_TESTS})
+	enable_testing()
 	include( "cmake/download_glfw.cmake" )
 	include( "cmake/download_glew.cmake" )
 	include( "cmake/download_spirvcross.cmake" )
