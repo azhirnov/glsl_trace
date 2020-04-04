@@ -2,14 +2,14 @@
 
 ## Features
  * shader debugging
- * shader profiling (using extensions [GL_EXT_shader_realtime_clock](https://github.com/KhronosGroup/GLSL/blob/master/extensions/ext/EXT_shader_realtime_clock.txt) and [ARB_shader_clock.txt](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_shader_clock.txt))
+ * shader profiling (using extensions [EXT_shader_realtime_clock](https://github.com/KhronosGroup/GLSL/blob/master/extensions/ext/EXT_shader_realtime_clock.txt) and [ARB_shader_clock](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_shader_clock.txt))
  * supports mesh and ray tracing shaders (Vulkan only)
 
 ## How its works
 **Setup:**</br> 
  * (__OpenGL__) Create shader and shader program for reqular rendering.
  * Use [glslang](https://github.com/KhronosGroup/glslang) to parse GLSL or HLSL source code
- * (__Vulkan__) Convert AST to SPIRV and create pipeline for reqular rendering.
+ * (__Vulkan__) Convert glslang AST to SPIRV and create pipeline for reqular rendering.
  * Create `ShaderTrace` object to store debug information
  * Get glslang AST `TProgram::getIntermediate(EShLanguage stage)`
  * Insert trace recording `ShaderTrace::InsertTraceRecording(TIntermediate &intermediate, uint32_t setIndex)` or `ShaderTrace::InsertFunctionProfiler(TIntermediate &intermediate, uint32_t setIndex, bool shaderSubgroupClock, bool shaderDeviceClock)`, where:</br>
