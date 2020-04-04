@@ -10,7 +10,7 @@ message( STATUS "target system: ${CMAKE_SYSTEM_NAME} (${CMAKE_SYSTEM_VERSION})" 
 message( STATUS "host system: ${CMAKE_HOST_SYSTEM_NAME} (${CMAKE_HOST_SYSTEM_VERSION})" )
 
 set( EXTERNALS_USE_STABLE_VERSIONS OFF CACHE BOOL "use last stable version instead of master branch" )
-set( ENABLE_OPENGL ON CACHE BOOL "OpenGL support" )
+set( ENABLE_TESTS ON CACHE BOOL "tests" )
 
 set( CMAKE_DEBUG_POSTFIX "d" )
 set( CMAKE_RELEASE_POSTFIX "" )
@@ -21,6 +21,8 @@ set( CMAKE_LIBRARY_OUTPUT_DIRECTORY "${MAIN_BINARY_DIR}" )
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY "${MAIN_BINARY_DIR}" )
 set( EXTERNALS_PATH "${CMAKE_CURRENT_SOURCE_DIR}" CACHE PATH "Path to external projects sources" )
 set( EXTERNALS_INSTALL_PATH "${CMAKE_BINARY_DIR}/external_libs" CACHE PATH "Path to install external projects libraries" )
+
+include( "cmake/compilers_minimal.cmake" )
 
 # prepare for external projects
 if (TRUE)
@@ -49,15 +51,16 @@ if (TRUE)
 	endforeach ()
 endif ()
 
-include( "cmake/compilers_minimal.cmake" )
 include( "cmake/download_glslang.cmake" )
 include( "cmake/project_template.cmake" )
-
 add_subdirectory( "shader_trace" )
 
-if (${ENABLE_OPENGL})
+if (${ENABLE_TESTS})
+	include( "cmake/download_glfw.cmake" )
+	include( "cmake/download_glew.cmake" )
 	include( "cmake/download_spirvcross.cmake" )
-	add_subdirectory( "glsl_trace" )
+	add_subdirectory( "tests/opengl" )
+	add_subdirectory( "tests/vulkan" )
 endif ()
 
 message( STATUS "project 'GLSL-Trace' generation ended" )
