@@ -6,7 +6,7 @@
  * supports mesh and ray tracing shaders (Vulkan only)
 
 ## How its works
-Setup:</br>
+**Setup:**</br> 
  * (__OpenGL__) Create shader and shader program for reqular rendering.
  * Use [glslang](https://github.com/KhronosGroup/glslang) to parse GLSL or HLSL source code
  * (__Vulkan__) Convert AST to SPIRV and create pipeline for reqular rendering.
@@ -18,9 +18,10 @@ Setup:</br>
    `descSetIndex` - descriptor set index that will be reserved for storage buffer (Vulkan only)</br>
  * (__Vulkan__) Convert AST with trace recording to SPIRV and create pipeline for debugging.
  * (__OpenGL__) Convert AST to SPIRV, use [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) to get GLSL code and create shader program for debugging.
-</br>
-To debug draw or compute or ray tracing invocation:</br>
 
+
+**To debug draw or compute or ray tracing invocation:**</br> 
+ 
  * (__Vulkan__) bind pipeline that contains shader with inserted trace recording
  * (__Vulkan__) bind descriptor set with storage buffer to index `descSetIndex`
  * (__OpenGL__) bind shader program that contains shader with inserted trace recording
@@ -29,7 +30,9 @@ To debug draw or compute or ray tracing invocation:</br>
  
 ## Debugging
 
-Enable pixel/invocation debugging from code:
+<details>
+<summary>Enable pixel/invocation debugging from code (OpenGL)</summary>
+   
 ```cpp
 // clear buffer
 uint32_t  zero = 0;
@@ -52,9 +55,35 @@ glBufferSubData( GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data );
 // dispatch or trace
 ...
 ```
+</details>
+<details>
+<summary>Enable pixel/invocation debugging from code (Vulkan)</summary>
+   
+```cpp
+// set pixel which you need to debug (2 components)
+// record if {pixel_x, pixel_y} == floor(gl_FragCoord.xy)
+uint32_t  data[] = { pixel_x, pixel_y };
+vkCmdUpdateBuffer( cmdBuffer, debugOutputBuffer, 0, sizeof(data), data );
+vkCmdFillBuffer( cmdBuffer, debugOutputBuffer, sizeof(data), VK_WHOLE_SIZE, 0 );
 
+// draw
+...
 
-Enable debugging from shader source:
+// ... or which compute invocation or ray tracing launch (3 components)
+// record if {thread_x, thread_y, thread_z} == gl_GlobalInvocationID
+// record if {thread_x, thread_y, thread_z} == gl_LaunchID
+uint32_t  data[] = { thread_x, thread_y, thread_z };
+vkCmdUpdateBuffer( cmdBuffer, debugOutputBuffer, 0, sizeof(data), data );
+vkCmdFillBuffer( cmdBuffer, debugOutputBuffer, sizeof(data), VK_WHOLE_SIZE, 0 );
+
+// dispatch or trace
+...
+```
+</details>
+
+<details>
+<summary>Enable debugging from shader source</summary>
+
 ```cpp
 // empty function will be replaced during shader compilation
 void dbg_EnableTraceRecording (bool b) {}
@@ -68,8 +97,11 @@ void main ()
     ...
 }
 ```
+</details>
 
-Example of shader trace:
+<details>
+<summary>Example of shader trace</summary>
+
 ```cpp
 //> gl_GlobalInvocationID: uint3 {8, 8, 0}
 //> gl_LocalInvocationID: uint3 {0, 0, 0}
@@ -93,10 +125,14 @@ no source
 //  value: float {0.506611}
 14.     imageStore( un_OutImage, ivec2(gl_GlobalInvocationID.xy), vec4(value) );
 ```
+</details>
+
 
 ## Profiling
 
-Enable pixel/invocation profiling from code:
+<details>
+<summary>Enable pixel/invocation profiling from code (OpenGL)</summary>
+   
 ```cpp
 // clear buffer
 uint32_t  zero = 0;
@@ -119,8 +155,35 @@ glBufferSubData( GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data );
 // dispatch or trace
 ...
 ```
+</details>
+<details>
+<summary>Enable pixel/invocation profiling from code (Vulkan)</summary>
+   
+```cpp
+// set pixel which you need to debug (2 components)
+// record if {pixel_x, pixel_y} == floor(gl_FragCoord.xy)
+uint32_t  data[] = { pixel_x, pixel_y };
+vkCmdUpdateBuffer( cmdBuffer, debugOutputBuffer, 0, sizeof(data), data );
+vkCmdFillBuffer( cmdBuffer, debugOutputBuffer, sizeof(data), VK_WHOLE_SIZE, 0 );
 
-Enable profiling from shader source:
+// draw
+...
+
+// ... or which compute invocation or ray tracing launch (3 components)
+// record if {thread_x, thread_y, thread_z} == gl_GlobalInvocationID
+// record if {thread_x, thread_y, thread_z} == gl_LaunchID
+uint32_t  data[] = { thread_x, thread_y, thread_z };
+vkCmdUpdateBuffer( cmdBuffer, debugOutputBuffer, 0, sizeof(data), data );
+vkCmdFillBuffer( cmdBuffer, debugOutputBuffer, sizeof(data), VK_WHOLE_SIZE, 0 );
+
+// dispatch or trace
+...
+```
+</details>
+
+<details>
+<summary>Enable profiling from shader source</summary>
+   
 ```cpp
 // empty function will be replaced during shader compilation
 void dbg_EnableProfiling (bool b) {}
@@ -134,9 +197,11 @@ void main ()
     ...
 }
 ```
+</details>
 
+<details>
+<summary>Example of shader profiling output</summary>
 
-Example of shader profiling output:
 ```cpp
 //> gl_GlobalInvocationID: uint3 {512, 512, 0}
 //> gl_LocalInvocationID: uint3 {0, 0, 0}
@@ -163,3 +228,5 @@ no source
 // invocations:    56
 72. float3 DHash33 (const float3 p)
 ```
+</details>
+
