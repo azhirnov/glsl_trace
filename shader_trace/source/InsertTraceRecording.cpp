@@ -80,6 +80,7 @@ namespace {
 		FileMap_t const&		_includedFilesMap;
 
 		const EShLanguage		_shLang;
+		bool					_isOpenGL		= false;
 
 
 	public:
@@ -92,24 +93,24 @@ namespace {
 		void Enter (TIntermNode* node);
 		void Leave (TIntermNode* node);
 
-		CallStack_t const&	GetCallStack ()			const				{ return _callStack; }
-		TIntermAggregate*	GetCurrentFunction ();
+		ND_ CallStack_t const&	GetCallStack ()			const					{ return _callStack; }
+		ND_ TIntermAggregate*	GetCurrentFunction ();
 
-		TIntermTyped*	GetInjection ();
-		void			InjectNode (TIntermTyped *node);
+		ND_ TIntermTyped*		GetInjection ();
+		void					InjectNode (TIntermTyped *node);
 
-		uint			GetSourceLocation (TIntermNode* node, const TSourceLoc &curr);
-		uint			GetCustomSourceLocation (TIntermNode* node, const TSourceLoc &curr);
+		ND_ uint				GetSourceLocation (TIntermNode* node, const TSourceLoc &curr);
+		ND_ uint				GetCustomSourceLocation (TIntermNode* node, const TSourceLoc &curr);
 
-		SrcLoc const&	GetCurrentLocation () const						{ return _callStack.back().loc; }
-		void			AddLocation (const TSourceLoc &loc);
-		void			AddLocation (const SrcLoc &src);
+		ND_ SrcLoc const&		GetCurrentLocation () const						{ return _callStack.back().loc; }
+		void					AddLocation (const TSourceLoc &loc);
+		void					AddLocation (const SrcLoc &src);
 
-		void						RequestFunc (const TString &fname)	{ _requiredFunctions.insert( fname ); }
-		RequiredFunctions_t const&	GetRequiredFunctions ()		const	{ return _requiredFunctions; }
+		void							RequestFunc (const TString &fname)		{ _requiredFunctions.insert( fname ); }
+		ND_ RequiredFunctions_t const&	GetRequiredFunctions ()		const		{ return _requiredFunctions; }
 
-		void			AddSymbol (TIntermSymbol* node);
-		int				GetUniqueSymbolID ()							{ return ++_maxSymbolId; }
+		void					AddSymbol (TIntermSymbol* node);
+		ND_ int					GetUniqueSymbolID ()							{ return ++_maxSymbolId; }
 
 
 		void CacheSymbolNode (TIntermSymbol* node)
@@ -118,26 +119,26 @@ namespace {
 			AddSymbol( node );
 		}
 
-		TIntermSymbol*  GetCachedSymbolNode (const TString &name)
+		ND_ TIntermSymbol*  GetCachedSymbolNode (const TString &name)
 		{
 			auto	iter = _cachedSymbols.find( name );
 			return	iter != _cachedSymbols.end() ? iter->second : nullptr;
 		}
 
 
-		TIntermSymbol*	GetDebugStorage ()						const	{ CHECK( _dbgStorage );  return _dbgStorage; }
-		bool			SetDebugStorage (TIntermSymbol* symb);
-		TIntermBinary*  GetDebugStorageField (const char* name)	const;
+		ND_ TIntermSymbol*	GetDebugStorage ()						const	{ CHECK( _dbgStorage );  return _dbgStorage; }
+			bool			SetDebugStorage (TIntermSymbol* symb);
+		ND_ TIntermBinary*  GetDebugStorageField (const char* name)	const;
 	
 
-		bool			PostProcess (OUT VarNames_t &);
+			bool			PostProcess (OUT VarNames_t &);
 
-		EShLanguage		GetShaderType ()	const						{ return _shLang; }
+		ND_ EShLanguage		GetShaderType ()	const						{ return _shLang; }
 
 
 	private:
 		void		_GetVariableID (TIntermNode* node, OUT VariableID &id, OUT uint &swizzle);
-		uint		_GetSourceId (const TSourceLoc &) const;
+		ND_ uint	_GetSourceId (const TSourceLoc &) const;
 	};
 }
 //-----------------------------------------------------------------------------
@@ -149,6 +150,40 @@ static void CreateShaderDebugStorage (uint setIndex, DebugInfo &dbgInfo, OUT uin
 static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo);
 static bool CreateDebugTraceFunctions (TIntermNode* root, uint initialPosition, DebugInfo &dbgInfo);
 static TIntermAggregate*  RecordShaderInfo (const TSourceLoc &loc, DebugInfo &dbgInfo);
+
+#if 0
+	static const char	RT_LaunchID[]			= "gl_LaunchID";
+	static const char	RT_LaunchSize[]			= "gl_LaunchSize";
+	static const char	RT_InstanceCustomIndex[]= "gl_InstanceCustomIndex";
+	static const char	RT_WorldRayOrigin[]		= "gl_WorldRayOrigin";
+	static const char	RT_WorldRayDirection[]	= "gl_WorldRayDirection";
+	static const char	RT_ObjectRayOrigin[]	= "gl_ObjectRayOrigin";
+	static const char	RT_ObjectRayDirection[]	= "gl_ObjectRayDirection";
+	static const char	RT_RayTmin[]			= "gl_RayTmin";
+	static const char	RT_RayTmax[]			= "gl_RayTmax";
+	static const char	RT_IncomingRayFlags[]	= "gl_IncomingRayFlags";
+	static const char	RT_ObjectToWorld[]		= "gl_ObjectToWorld";
+	static const char	RT_WorldToObject[]		= "gl_WorldToObject";
+	static const char	RT_HitT[]				= "gl_HitT";
+	static const char	RT_HitKind[]			= "gl_HitKind";
+	static const char	RT_InstanceID[]			= "gl_InstanceID";
+#else
+	static const char	RT_LaunchID[]			= "gl_LaunchIDNV";
+	static const char	RT_LaunchSize[]			= "gl_LaunchSizeNV";
+	static const char	RT_InstanceCustomIndex[]= "gl_InstanceCustomIndexNV";
+	static const char	RT_WorldRayOrigin[]		= "gl_WorldRayOriginNV";
+	static const char	RT_WorldRayDirection[]	= "gl_WorldRayDirectionNV";
+	static const char	RT_ObjectRayOrigin[]	= "gl_ObjectRayOriginNV";
+	static const char	RT_ObjectRayDirection[]	= "gl_ObjectRayDirectionNV";
+	static const char	RT_RayTmin[]			= "gl_RayTminNV";
+	static const char	RT_RayTmax[]			= "gl_RayTmaxNV";
+	static const char	RT_IncomingRayFlags[]	= "gl_IncomingRayFlagsNV";
+	static const char	RT_ObjectToWorld[]		= "gl_ObjectToWorldNV";
+	static const char	RT_WorldToObject[]		= "gl_WorldToObjectNV";
+	static const char	RT_HitT[]				= "gl_HitTNV";
+	static const char	RT_HitKind[]			= "gl_HitKindNV";
+	static const char	RT_InstanceID[]			= "gl_InstanceIDNV";
+#endif
 
 /*
 =================================================
@@ -1109,6 +1144,10 @@ static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 		}
 	}*/
 
+	dbgInfo._isOpenGL = dbgInfo.GetCachedSymbolNode( "gl_VertexID" ) or
+						dbgInfo.GetCachedSymbolNode( "gl_InstanceID" );
+	
+
 	if ( shader == EShLangFragment and not dbgInfo.GetCachedSymbolNode( "gl_FragCoord" ))
 	{
 		TPublicType		vec4_type;	vec4_type.init({});
@@ -1242,7 +1281,7 @@ static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 		dbgInfo.CacheSymbolNode( symb );
 	}
 
-	if ( need_launch_id and not dbgInfo.GetCachedSymbolNode( "gl_LaunchID" ))
+	if ( need_launch_id and not dbgInfo.GetCachedSymbolNode( RT_LaunchID ))
 	{
 		TPublicType		uint_type;	uint_type.init({});
 		uint_type.basicType			= TBasicType::EbtUint;
@@ -1250,12 +1289,12 @@ static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 		uint_type.qualifier.storage	= TStorageQualifier::EvqVaryingIn;
 		uint_type.qualifier.builtIn	= TBuiltInVariable::EbvLaunchId;
 
-		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "gl_LaunchID", TType{uint_type} };
+		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), RT_LaunchID, TType{uint_type} };
 		symb->setLoc( loc );
 		dbgInfo.CacheSymbolNode( symb );
 	}
 
-	if ( shader == EShLangVertex and not dbgInfo.GetCachedSymbolNode( "gl_VertexIndex" ))
+	if ( shader == EShLangVertex and not dbgInfo._isOpenGL and not dbgInfo.GetCachedSymbolNode( "gl_VertexIndex" ))
 	{
 		TPublicType		int_type;	int_type.init({});
 		int_type.basicType			= TBasicType::EbtInt;
@@ -1267,7 +1306,19 @@ static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 		dbgInfo.CacheSymbolNode( symb );
 	}
 	
-	if ( shader == EShLangVertex and not dbgInfo.GetCachedSymbolNode( "gl_InstanceIndex" ))
+	if ( shader == EShLangVertex and dbgInfo._isOpenGL and not dbgInfo.GetCachedSymbolNode( "gl_VertexID" ))
+	{
+		TPublicType		int_type;	int_type.init({});
+		int_type.basicType			= TBasicType::EbtInt;
+		int_type.qualifier.storage	= TStorageQualifier::EvqVaryingIn;
+		int_type.qualifier.builtIn	= TBuiltInVariable::EbvVertexId;
+
+		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "gl_VertexID", TType{int_type} };
+		symb->setLoc( loc );
+		dbgInfo.CacheSymbolNode( symb );
+	}
+
+	if ( shader == EShLangVertex and not dbgInfo._isOpenGL and not dbgInfo.GetCachedSymbolNode( "gl_InstanceIndex" ))
 	{
 		TPublicType		int_type;	int_type.init({});
 		int_type.basicType			= TBasicType::EbtInt;
@@ -1275,6 +1326,18 @@ static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 		int_type.qualifier.builtIn	= TBuiltInVariable::EbvInstanceIndex;
 
 		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "gl_InstanceIndex", TType{int_type} };
+		symb->setLoc( loc );
+		dbgInfo.CacheSymbolNode( symb );
+	}
+
+	if ( shader == EShLangVertex and dbgInfo._isOpenGL and not dbgInfo.GetCachedSymbolNode( "gl_InstanceID" ))
+	{
+		TPublicType		int_type;	int_type.init({});
+		int_type.basicType			= TBasicType::EbtInt;
+		int_type.qualifier.storage	= TStorageQualifier::EvqVaryingIn;
+		int_type.qualifier.builtIn	= TBuiltInVariable::EbvInstanceId;
+
+		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "gl_InstanceID", TType{int_type} };
 		symb->setLoc( loc );
 		dbgInfo.CacheSymbolNode( symb );
 	}
@@ -1903,20 +1966,41 @@ static TIntermAggregate*  RecordVertexShaderInfo (const TSourceLoc &loc, DebugIn
 	TIntermAggregate*	body = new TIntermAggregate{ TOperator::EOpSequence };
 	body->setType( TType{EbtVoid} );
 	
-	// "dbg_AppendToTrace( gl_VertexIndex, location )"
+	if ( dbgInfo._isOpenGL )
 	{
-		TIntermSymbol*	vert_index	= dbgInfo.GetCachedSymbolNode( "gl_VertexIndex" );
-		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( vert_index, loc );
+		// "dbg_AppendToTrace( gl_VertexID, location )"
+		{
+			TIntermSymbol*	vert_index	= dbgInfo.GetCachedSymbolNode( "gl_VertexID" );
+			const uint		loc_id		= dbgInfo.GetCustomSourceLocation( vert_index, loc );
 
-		body->getSequence().push_back( CreateAppendToTrace( vert_index, loc_id, dbgInfo ));
-	}
+			body->getSequence().push_back( CreateAppendToTrace( vert_index, loc_id, dbgInfo ));
+		}
 	
-	// "dbg_AppendToTrace( gl_InstanceIndex, location )"
-	{
-		TIntermSymbol*	instance	= dbgInfo.GetCachedSymbolNode( "gl_InstanceIndex" );
-		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( instance, loc );
+		// "dbg_AppendToTrace( gl_InstanceID, location )"
+		{
+			TIntermSymbol*	instance	= dbgInfo.GetCachedSymbolNode( "gl_InstanceID" );
+			const uint		loc_id		= dbgInfo.GetCustomSourceLocation( instance, loc );
 
-		body->getSequence().push_back( CreateAppendToTrace( instance, loc_id, dbgInfo ));
+			body->getSequence().push_back( CreateAppendToTrace( instance, loc_id, dbgInfo ));
+		}
+	}
+	else
+	{
+		// "dbg_AppendToTrace( gl_VertexIndex, location )"
+		{
+			TIntermSymbol*	vert_index	= dbgInfo.GetCachedSymbolNode( "gl_VertexIndex" );
+			const uint		loc_id		= dbgInfo.GetCustomSourceLocation( vert_index, loc );
+
+			body->getSequence().push_back( CreateAppendToTrace( vert_index, loc_id, dbgInfo ));
+		}
+	
+		// "dbg_AppendToTrace( gl_InstanceIndex, location )"
+		{
+			TIntermSymbol*	instance	= dbgInfo.GetCachedSymbolNode( "gl_InstanceIndex" );
+			const uint		loc_id		= dbgInfo.GetCustomSourceLocation( instance, loc );
+
+			body->getSequence().push_back( CreateAppendToTrace( instance, loc_id, dbgInfo ));
+		}
 	}
 
 	// "dbg_AppendToTrace( gl_DrawID, location )"
@@ -2207,7 +2291,7 @@ static TIntermAggregate*  RecordRayGenShaderInfo (const TSourceLoc &loc, DebugIn
 	
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
-		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LaunchID" );
+		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
 		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
@@ -2227,7 +2311,7 @@ static TIntermAggregate*  RecordHitShaderInfo (const TSourceLoc &loc, DebugInfo 
 	
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
-		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LaunchID" );
+		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
 		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
@@ -2248,84 +2332,84 @@ static TIntermAggregate*  RecordHitShaderInfo (const TSourceLoc &loc, DebugInfo 
 	}
 
 	// "dbg_AppendToTrace( gl_InstanceCustomIndex, location )"
-	if ( auto* instance_index = dbgInfo.GetCachedSymbolNode( "gl_InstanceCustomIndex" ))
+	if ( auto* instance_index = dbgInfo.GetCachedSymbolNode( RT_InstanceCustomIndex ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( instance_index, loc );
 		body->getSequence().push_back( CreateAppendToTrace( instance_index, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayOrigin, location )"
-	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_WorldRayOrigin" ))
+	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( RT_WorldRayOrigin ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayDirection, location )"
-	if ( auto* world_ray_direction = dbgInfo.GetCachedSymbolNode( "gl_WorldRayDirection" ))
+	if ( auto* world_ray_direction = dbgInfo.GetCachedSymbolNode( RT_WorldRayDirection ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_direction, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayOrigin, location )"
-	if ( auto* object_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayOrigin" ))
+	if ( auto* object_ray_origin = dbgInfo.GetCachedSymbolNode( RT_ObjectRayOrigin ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayDirection, location )"
-	if ( auto* object_ray_direction = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayDirection" ))
+	if ( auto* object_ray_direction = dbgInfo.GetCachedSymbolNode( RT_ObjectRayDirection ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_direction, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmin, location )"
-	if ( auto* ray_tmin = dbgInfo.GetCachedSymbolNode( "gl_RayTmin" ))
+	if ( auto* ray_tmin = dbgInfo.GetCachedSymbolNode( RT_RayTmin ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmax, location )"
-	if ( auto* ray_tmax = dbgInfo.GetCachedSymbolNode( "gl_RayTmax" ))
+	if ( auto* ray_tmax = dbgInfo.GetCachedSymbolNode( RT_RayTmax ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmax, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmax, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_IncomingRayFlags, location )"
-	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( "gl_IncomingRayFlags" ))
+	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( RT_IncomingRayFlags ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
 		body->getSequence().push_back( CreateAppendToTrace( incoming_ray_flags, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_HitT, location )"
-	if ( auto* hit_t = dbgInfo.GetCachedSymbolNode( "gl_HitT" ))
+	if ( auto* hit_t = dbgInfo.GetCachedSymbolNode( RT_HitT ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( hit_t, loc );
 		body->getSequence().push_back( CreateAppendToTrace( hit_t, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_HitKind, location )"
-	if ( auto* hit_kind = dbgInfo.GetCachedSymbolNode( "gl_HitKind" ))
+	if ( auto* hit_kind = dbgInfo.GetCachedSymbolNode( RT_HitKind ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( hit_kind, loc );
 		body->getSequence().push_back( CreateAppendToTrace( hit_kind, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectToWorld, location )"
-	if ( auto* object_to_world = dbgInfo.GetCachedSymbolNode( "gl_ObjectToWorld" ))
+	if ( auto* object_to_world = dbgInfo.GetCachedSymbolNode( RT_ObjectToWorld ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_to_world, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_to_world, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldToObject, location )"
-	if ( auto* world_to_object = dbgInfo.GetCachedSymbolNode( "gl_WorldToObject" ))
+	if ( auto* world_to_object = dbgInfo.GetCachedSymbolNode( RT_WorldToObject ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_to_object, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_to_object, loc_id, dbgInfo ));
@@ -2345,7 +2429,7 @@ static TIntermAggregate*  RecordIntersectionShaderInfo (const TSourceLoc &loc, D
 	
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
-		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LaunchID" );
+		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
 		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
@@ -2366,70 +2450,70 @@ static TIntermAggregate*  RecordIntersectionShaderInfo (const TSourceLoc &loc, D
 	}
 
 	// "dbg_AppendToTrace( gl_InstanceCustomIndex, location )"
-	if ( auto* instance_index = dbgInfo.GetCachedSymbolNode( "gl_InstanceCustomIndex" ))
+	if ( auto* instance_index = dbgInfo.GetCachedSymbolNode( RT_InstanceCustomIndex ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( instance_index, loc );
 		body->getSequence().push_back( CreateAppendToTrace( instance_index, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayOrigin, location )"
-	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_WorldRayOrigin" ))
+	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( RT_WorldRayOrigin ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayDirection, location )"
-	if ( auto* world_ray_dir = dbgInfo.GetCachedSymbolNode( "gl_WorldRayDirection" ))
+	if ( auto* world_ray_dir = dbgInfo.GetCachedSymbolNode( RT_WorldRayDirection ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_dir, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_dir, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayOrigin, location )"
-	if ( auto* object_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayOrigin" ))
+	if ( auto* object_ray_origin = dbgInfo.GetCachedSymbolNode( RT_ObjectRayOrigin ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayDirection, location )"
-	if ( auto* object_ray_dir = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayDirection" ))
+	if ( auto* object_ray_dir = dbgInfo.GetCachedSymbolNode( RT_ObjectRayDirection ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_dir, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_dir, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmin, location )"
-	if ( auto* ray_tmin = dbgInfo.GetCachedSymbolNode( "gl_RayTmin" ))
+	if ( auto* ray_tmin = dbgInfo.GetCachedSymbolNode( RT_RayTmin ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmax, location )"
-	if ( auto* ray_tmax = dbgInfo.GetCachedSymbolNode( "gl_RayTmax" ))
+	if ( auto* ray_tmax = dbgInfo.GetCachedSymbolNode( RT_RayTmax ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmax, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmax, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_IncomingRayFlags, location )"
-	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( "gl_IncomingRayFlags" ))
+	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( RT_IncomingRayFlags ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
 		body->getSequence().push_back( CreateAppendToTrace( incoming_ray_flags, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectToWorld, location )"
-	if ( auto* object_to_world = dbgInfo.GetCachedSymbolNode( "gl_ObjectToWorld" ))
+	if ( auto* object_to_world = dbgInfo.GetCachedSymbolNode( RT_ObjectToWorld ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_to_world, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_to_world, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldToObject, location )"
-	if ( auto* world_to_object = dbgInfo.GetCachedSymbolNode( "gl_WorldToObject" ))
+	if ( auto* world_to_object = dbgInfo.GetCachedSymbolNode( RT_WorldToObject ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_to_object, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_to_object, loc_id, dbgInfo ));
@@ -2449,35 +2533,35 @@ static TIntermAggregate*  RecordMissShaderInfo (const TSourceLoc &loc, DebugInfo
 	
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
-		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LaunchID" );
+		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
 		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
 	
 	// "dbg_AppendToTrace( gl_WorldRayOrigin, location )"
-	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_WorldRayOrigin" ))
+	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( RT_WorldRayOrigin ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayDirection, location )"
-	if ( auto* world_ray_direction = dbgInfo.GetCachedSymbolNode( "gl_WorldRayDirection" ))
+	if ( auto* world_ray_direction = dbgInfo.GetCachedSymbolNode( RT_WorldRayDirection ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_direction, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayOrigin, location )"
-	if ( auto* obj_ray_origin = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayOrigin" ))
+	if ( auto* obj_ray_origin = dbgInfo.GetCachedSymbolNode( RT_ObjectRayOrigin ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( obj_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( obj_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayDirection, location )"
-	if ( auto* obj_ray_direction = dbgInfo.GetCachedSymbolNode( "gl_ObjectRayDirection" ))
+	if ( auto* obj_ray_direction = dbgInfo.GetCachedSymbolNode( RT_ObjectRayDirection ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( obj_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( obj_ray_direction, loc_id, dbgInfo ));
@@ -2497,14 +2581,14 @@ static TIntermAggregate*  RecordCallableShaderInfo (const TSourceLoc &loc, Debug
 	
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
-		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( "gl_LaunchID" );
+		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
 		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_IncomingRayFlags, location )"
-	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( "gl_IncomingRayFlags" ))
+	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( RT_IncomingRayFlags ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
 		body->getSequence().push_back( CreateAppendToTrace( incoming_ray_flags, loc_id, dbgInfo ));
@@ -2748,7 +2832,7 @@ static TIntermOperator*  CreateRayTracingShaderIsDebugInvocation (DebugInfo &dbg
 		TIntermConstantUnion*	x_field		= new TIntermConstantUnion{ x_index, TType{index_type} };
 		TIntermBinary*			launch_x	= new TIntermBinary{ TOperator::EOpIndexDirect };
 		launch_x->setType( TType{uint_type} );
-		launch_x->setLeft( dbgInfo.GetCachedSymbolNode( "gl_LaunchID" ));
+		launch_x->setLeft( dbgInfo.GetCachedSymbolNode( RT_LaunchID ));
 		launch_x->setRight( x_field );
 	
 		// ... == ...
@@ -2768,7 +2852,7 @@ static TIntermOperator*  CreateRayTracingShaderIsDebugInvocation (DebugInfo &dbg
 		TIntermConstantUnion*	y_field		= new TIntermConstantUnion{ y_index, TType{index_type} };
 		TIntermBinary*			launch_y	= new TIntermBinary{ TOperator::EOpIndexDirect };
 		launch_y->setType( TType{uint_type} );
-		launch_y->setLeft( dbgInfo.GetCachedSymbolNode( "gl_LaunchID" ));
+		launch_y->setLeft( dbgInfo.GetCachedSymbolNode( RT_LaunchID ));
 		launch_y->setRight( y_field );
 	
 		// ... == ...
@@ -2788,7 +2872,7 @@ static TIntermOperator*  CreateRayTracingShaderIsDebugInvocation (DebugInfo &dbg
 		TIntermConstantUnion*	z_field		= new TIntermConstantUnion{ z_index, TType{index_type} };
 		TIntermBinary*			launch_z	= new TIntermBinary{ TOperator::EOpIndexDirect };
 		launch_z->setType( TType{uint_type} );
-		launch_z->setLeft( dbgInfo.GetCachedSymbolNode( "gl_LaunchID" ));
+		launch_z->setLeft( dbgInfo.GetCachedSymbolNode( RT_LaunchID ));
 		launch_z->setRight( z_field );
 	
 		// ... == ...
@@ -3618,7 +3702,9 @@ static bool RecursiveProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 		 node->getName() == "gl_HelperInvocation"		or
 		 // vertex shader
 		 node->getName() == "gl_VertexIndex"			or
+		 node->getName() == "gl_VertexID"				or
 		 node->getName() == "gl_InstanceIndex"			or
+		 node->getName() == "gl_InstanceID"				or
 		 node->getName() == "gl_DrawIDARB"				or		// requires GL_ARB_shader_draw_parameters
 		 node->getName() == "gl_DrawID"					or		// requires version 460
 		 // geometry shader
@@ -3648,26 +3734,26 @@ static bool RecursiveProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 		 //		reuse 'gl_WorkGroupSize'
 		 node->getName() == "gl_MeshViewCountNV"		or
 		 // ray generation shader
-		 node->getName() == "gl_LaunchID"				or
-		 node->getName() == "gl_LaunchSizeNV"			or
+		 node->getName() == RT_LaunchID					or
+		 node->getName() == RT_LaunchSize				or
 		 // ray intersection & any-hit & closest-hit & miss shaders
 		 //		reuse 'gl_LaunchID'
 		 //		reuse 'gl_PrimitiveID'
-		 node->getName() == "gl_LaunchSize"				or
-		 node->getName() == "gl_InstanceCustomIndex"	or
-		 node->getName() == "gl_WorldRayOrigin"			or
-		 node->getName() == "gl_WorldRayDirection"		or
-		 node->getName() == "gl_ObjectRayOrigin"		or
-		 node->getName() == "gl_ObjectRayDirection"		or
-		 node->getName() == "gl_RayTmin"				or
-		 node->getName() == "gl_RayTmax"				or
-		 node->getName() == "gl_IncomingRayFlags"		or
-		 node->getName() == "gl_ObjectToWorld"			or
-		 node->getName() == "gl_WorldToObject"			or
+		 //		reuse 'gl_LaunchSize'
+		 node->getName() == RT_InstanceCustomIndex		or
+		 node->getName() == RT_WorldRayOrigin			or
+		 node->getName() == RT_WorldRayDirection		or
+		 node->getName() == RT_ObjectRayOrigin			or
+		 node->getName() == RT_ObjectRayDirection		or
+		 node->getName() == RT_RayTmin					or
+		 node->getName() == RT_RayTmax					or
+		 node->getName() == RT_IncomingRayFlags			or
+		 node->getName() == RT_ObjectToWorld			or
+		 node->getName() == RT_WorldToObject			or
 		 // ray intersection & any-hit & closest-hit shaders
-		 node->getName() == "gl_HitT"					or
-		 node->getName() == "gl_HitKind"				or
-		 node->getName() == "gl_InstanceID"				or
+		 node->getName() == RT_HitT						or
+		 node->getName() == RT_HitKind					or
+		 node->getName() == RT_InstanceID				or
 		 // all shaders
 		 node->getName() == "gl_SubgroupInvocationID"	)
 	{

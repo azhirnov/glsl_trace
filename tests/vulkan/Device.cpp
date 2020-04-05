@@ -33,6 +33,14 @@ ND_ auto  AlignToLarger (const T0 &value, const T1 &align)
 	return ((value + align-1) / align) * align;
 }
 
+// Warning:
+// Before testing on new GPU set 'UpdateReferences' to 'true', run tests,
+// using git compare new references with origin, only float values may differ slightly.
+// Then set 'UpdateReferences' to 'false' and run tests again.
+// All tests must pass.
+static const bool	UpdateReferences = true;
+
+
 /*
 =================================================
 	Create
@@ -732,6 +740,7 @@ bool  Device::Compile  (OUT VkShaderModule &		shaderModule,
 	info.codeSize	= sizeof(_tempBuf[0]) * _tempBuf.size();
 
 	VK_CHECK( vkCreateShaderModule( device, &info, nullptr, OUT &shaderModule ));
+	tempHandles.emplace_back( EHandleType::Shader, uint64_t(shaderModule) );
 
 	if ( debuggable ) {
 		_debuggableShaders.insert_or_assign( shaderModule, debug_info.release() );
@@ -820,17 +829,16 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 
 /*
 =================================================
-	GetDebugOutput
+	_GetDebugOutput
 =================================================
 */
-bool  Device::GetDebugOutput (VkShaderModule shaderModule, const void *ptr, VkDeviceSize maxSize, OUT vector<string> &result) const
+bool  Device::_GetDebugOutput (VkShaderModule shaderModule, const void *ptr, VkDeviceSize maxSize, OUT vector<string> &result) const
 {
 	auto	iter = _debuggableShaders.find( shaderModule );
 	CHECK_ERR( iter != _debuggableShaders.end() );
 
 	return iter->second->ParseShaderTrace( ptr, maxSize, OUT result );
 }
-
 
 /*
 =================================================
@@ -853,6 +861,7 @@ bool  Device::CreateDebugDescriptorSet (VkShaderStageFlags stages, OUT VkDescrip
 		info.pBindings		= &binding;
 
 		VK_CHECK( vkCreateDescriptorSetLayout( device, &info, nullptr, OUT &dsLayout ));
+		tempHandles.emplace_back( EHandleType::DescriptorSetLayout, uint64_t(dsLayout) );
 	}
 	
 	// allocate descriptor set
@@ -892,7 +901,7 @@ bool  Device::CreateDebugDescriptorSet (VkShaderStageFlags stages, OUT VkDescrip
 */
 bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height, VkImageUsageFlags imageUsage,
 								  OUT VkRenderPass &outRenderPass, OUT VkImage &outImage,
-								  OUT VkDeviceMemory &outImageMem, OUT VkFramebuffer &outFramebuffer)
+								  OUT VkFramebuffer &outFramebuffer)
 {
 	// create image
 	{
@@ -911,6 +920,7 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 		info.initialLayout	= VK_IMAGE_LAYOUT_UNDEFINED;
 
 		VK_CHECK( vkCreateImage( device, &info, nullptr, OUT &outImage ));
+		tempHandles.emplace_back( EHandleType::Image, uint64_t(outImage) );
 
 		VkMemoryRequirements	mem_req;
 		vkGetImageMemoryRequirements( device, outImage, OUT &mem_req );
@@ -921,8 +931,11 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 		alloc_info.allocationSize	= mem_req.size;
 		CHECK_ERR( GetMemoryTypeIndex( mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, OUT alloc_info.memoryTypeIndex ));
 
-		VK_CHECK( vkAllocateMemory( device, &alloc_info, nullptr, OUT &outImageMem ));
-		VK_CHECK( vkBindImageMemory( device, outImage, outImageMem, 0 ));
+		VkDeviceMemory	image_mem;
+		VK_CHECK( vkAllocateMemory( device, &alloc_info, nullptr, OUT &image_mem ));
+		tempHandles.emplace_back( EHandleType::Memory, uint64_t(image_mem) );
+
+		VK_CHECK( vkBindImageMemory( device, outImage, image_mem, 0 ));
 	}
 
 	// create image view
@@ -938,6 +951,7 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 		info.subresourceRange	= { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
 		VK_CHECK( vkCreateImageView( device, &info, nullptr, OUT &view ));
+		tempHandles.emplace_back( EHandleType::ImageView, uint64_t(view) );
 	}
 
 	// create renderpass
@@ -998,6 +1012,7 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 		info.pDependencies		= dependencies;
 
 		VK_CHECK( vkCreateRenderPass( device, &info, nullptr, OUT &outRenderPass ));
+		tempHandles.emplace_back( EHandleType::RenderPass, uint64_t(outRenderPass) );
 	}
 	
 	// create framebuffer
@@ -1013,6 +1028,7 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 		info.layers				= 1;
 
 		VK_CHECK( vkCreateFramebuffer( device, &info, nullptr, OUT &outFramebuffer ));
+		tempHandles.emplace_back( EHandleType::Framebuffer, uint64_t(outFramebuffer) );
 	}
 	return true;
 }
@@ -1036,6 +1052,7 @@ bool  Device::CreateGraphicsPipelineVar1 (VkShaderModule vertShader, VkShaderMod
 		info.pPushConstantRanges	= nullptr;
 
 		VK_CHECK( vkCreatePipelineLayout( device, &info, nullptr, OUT &outPipelineLayout ));
+		tempHandles.emplace_back( EHandleType::PipelineLayout, uint64_t(outPipelineLayout) );
 	}
 
 	VkPipelineShaderStageCreateInfo			stages[2] = {};
@@ -1112,6 +1129,8 @@ bool  Device::CreateGraphicsPipelineVar1 (VkShaderModule vertShader, VkShaderMod
 	info.subpass				= 0;
 
 	VK_CHECK( vkCreateGraphicsPipelines( device, VK_NULL_HANDLE, 1, &info, nullptr, OUT &outPipeline ));
+	tempHandles.emplace_back( EHandleType::Pipeline, uint64_t(outPipeline) );
+
 	return true;
 }
 
@@ -1134,6 +1153,7 @@ bool  Device::CreateGraphicsPipelineVar2 (VkShaderModule vertShader, VkShaderMod
 		info.pPushConstantRanges	= nullptr;
 
 		VK_CHECK( vkCreatePipelineLayout( device, &info, nullptr, OUT &outPipelineLayout ));
+		tempHandles.emplace_back( EHandleType::PipelineLayout, uint64_t(outPipelineLayout) );
 	}
 
 	VkPipelineShaderStageCreateInfo			stages[4] = {};
@@ -1223,6 +1243,8 @@ bool  Device::CreateGraphicsPipelineVar2 (VkShaderModule vertShader, VkShaderMod
 	info.subpass				= 0;
 
 	VK_CHECK( vkCreateGraphicsPipelines( device, VK_NULL_HANDLE, 1, &info, nullptr, OUT &outPipeline ));
+	tempHandles.emplace_back( EHandleType::Pipeline, uint64_t(outPipeline) );
+
 	return true;
 }
 
@@ -1245,6 +1267,7 @@ bool  Device::CreateMeshPipelineVar1 (VkShaderModule meshShader, VkShaderModule 
 		info.pPushConstantRanges	= nullptr;
 
 		VK_CHECK( vkCreatePipelineLayout( device, &info, nullptr, OUT &outPipelineLayout ));
+		tempHandles.emplace_back( EHandleType::PipelineLayout, uint64_t(outPipelineLayout) );
 	}
 
 	VkPipelineShaderStageCreateInfo			stages[2] = {};
@@ -1321,6 +1344,8 @@ bool  Device::CreateMeshPipelineVar1 (VkShaderModule meshShader, VkShaderModule 
 	info.subpass				= 0;
 
 	VK_CHECK( vkCreateGraphicsPipelines( device, VK_NULL_HANDLE, 1, &info, nullptr, OUT &outPipeline ));
+	tempHandles.emplace_back( EHandleType::Pipeline, uint64_t(outPipeline) );
+
 	return true;
 }
 
@@ -1329,8 +1354,7 @@ bool  Device::CreateMeshPipelineVar1 (VkShaderModule meshShader, VkShaderModule 
 	CreateRayTracingScene
 =================================================
 */
-bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
-									 OUT VkBuffer &shaderBindingTable, OUT VkDeviceMemory &outMemory,
+bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT VkBuffer &shaderBindingTable,
 									 OUT VkAccelerationStructureNV &topLevelAS, OUT VkAccelerationStructureNV &bottomLevelAS)
 {
 	struct VkGeometryInstance
@@ -1380,6 +1404,7 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
 	VkBuffer		scratch_buffer;
 	VkDeviceMemory	host_memory;
 	uint64_t		bottom_level_as_handle = 0;
+	VkDeviceMemory	dev_memory;
 
 	ResourceInit	res;
 	res.dev.memProperty = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
@@ -1463,6 +1488,7 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
 		createinfo.info.pGeometries		= geometry;
 
 		VK_CHECK( vkCreateAccelerationStructureNV( device, &createinfo, nullptr, OUT &bottomLevelAS ));
+		tempHandles.emplace_back( EHandleType::AccStruct, uint64_t(bottomLevelAS) );
 		
 		VkAccelerationStructureMemoryRequirementsInfoNV	mem_info = {};
 		mem_info.sType					= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
@@ -1475,12 +1501,12 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
 		res.dev.totalSize	 = offset + mem_req.memoryRequirements.size;
 		res.dev.memTypeBits	|= mem_req.memoryRequirements.memoryTypeBits;
 		
-		res.onBind.push_back( [this, bottomLevelAS, &bottom_level_as_handle, &outMemory, offset] (void *) -> bool
+		res.onBind.push_back( [this, bottomLevelAS, &bottom_level_as_handle, &dev_memory, offset] (void *) -> bool
 		{
 			VkBindAccelerationStructureMemoryInfoNV	bind_info = {};
 			bind_info.sType					= VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
 			bind_info.accelerationStructure	= bottomLevelAS;
-			bind_info.memory				= outMemory;
+			bind_info.memory				= dev_memory;
 			bind_info.memoryOffset			= offset;
 			VK_CHECK( vkBindAccelerationStructureMemoryNV( device, 1, &bind_info ));
 
@@ -1552,6 +1578,7 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
 		createinfo.info.instanceCount	= 1;
 
 		VK_CHECK( vkCreateAccelerationStructureNV( device, &createinfo, nullptr, OUT &topLevelAS ));
+		tempHandles.emplace_back( EHandleType::AccStruct, uint64_t(topLevelAS) );
 		
 		VkAccelerationStructureMemoryRequirementsInfoNV	mem_info = {};
 		mem_info.sType					= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
@@ -1565,12 +1592,12 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
 		res.dev.totalSize	 = offset + mem_req.memoryRequirements.size;
 		res.dev.memTypeBits	|= mem_req.memoryRequirements.memoryTypeBits;
 		
-		res.onBind.push_back( [this, &outMemory, topLevelAS, offset] (void *) -> bool
+		res.onBind.push_back( [this, &dev_memory, topLevelAS, offset] (void *) -> bool
 		{
 			VkBindAccelerationStructureMemoryInfoNV	bind_info = {};
 			bind_info.sType					= VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
 			bind_info.accelerationStructure	= topLevelAS;
-			bind_info.memory				= outMemory;
+			bind_info.memory				= dev_memory;
 			bind_info.memoryOffset			= offset;
 			VK_CHECK( vkBindAccelerationStructureMemoryNV( device, 1, &bind_info ));
 			return true;
@@ -1636,9 +1663,9 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
 		res.dev.totalSize	 = offset + mem_req.size;
 		res.dev.memTypeBits	|= mem_req.memoryTypeBits;
 
-		res.onBind.push_back( [this, scratch_buffer, &outMemory, offset] (void *) -> bool
+		res.onBind.push_back( [this, scratch_buffer, &dev_memory, offset] (void *) -> bool
 		{
-			VK_CHECK( vkBindBufferMemory( device, scratch_buffer, outMemory, offset ));
+			VK_CHECK( vkBindBufferMemory( device, scratch_buffer, dev_memory, offset ));
 			return true;
 		});
 	}
@@ -1653,6 +1680,7 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
 		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
 		VK_CHECK( vkCreateBuffer( device, &info, nullptr, OUT &shaderBindingTable ));
+		tempHandles.emplace_back( EHandleType::Buffer, uint64_t(shaderBindingTable) );
 		
 		VkMemoryRequirements	mem_req;
 		vkGetBufferMemoryRequirements( device, shaderBindingTable, OUT &mem_req );
@@ -1661,9 +1689,9 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
 		res.dev.totalSize	 = offset + mem_req.size;
 		res.dev.memTypeBits	|= mem_req.memoryTypeBits;
 
-		res.onBind.push_back( [this, shaderBindingTable, &outMemory, offset] (void *) -> bool
+		res.onBind.push_back( [this, shaderBindingTable, &dev_memory, offset] (void *) -> bool
 		{
-			VK_CHECK( vkBindBufferMemory( device, shaderBindingTable, outMemory, offset ));
+			VK_CHECK( vkBindBufferMemory( device, shaderBindingTable, dev_memory, offset ));
 			return true;
 		});
 
@@ -1684,7 +1712,8 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
 		info.allocationSize		= res.dev.totalSize;
 		CHECK_ERR( GetMemoryTypeIndex( res.dev.memTypeBits, res.dev.memProperty, OUT info.memoryTypeIndex ));
 
-		VK_CHECK( vkAllocateMemory( device, &info, nullptr, OUT &outMemory ));
+		VK_CHECK( vkAllocateMemory( device, &info, nullptr, OUT &dev_memory ));
+		tempHandles.emplace_back( EHandleType::Memory, uint64_t(dev_memory) );
 	}
 
 	// allocate host visible memory
@@ -1749,4 +1778,140 @@ VKAPI_ATTR VkBool32 VKAPI_CALL
 {
 	std::cout << pCallbackData->pMessage << std::endl;
 	return VK_FALSE;
+}
+
+/*
+=================================================
+	TestDebugTraceOutput
+=================================================
+*/
+bool  Device::TestDebugTraceOutput (vector<VkShaderModule> modules, string referenceFile)
+{
+	CHECK_ERR( referenceFile.size() );
+	CHECK_ERR( modules.size() );
+
+	string			merged;
+	vector<string>	debug_output;
+
+	for (auto& module : modules)
+	{
+		vector<string>	temp;
+		CHECK_ERR( _GetDebugOutput( module, readBackPtr, debugOutputSize, OUT temp ));
+		CHECK_ERR( temp.size() );
+		debug_output.insert( debug_output.end(), temp.begin(), temp.end() );
+	}
+
+	std::sort( debug_output.begin(), debug_output.end() );
+
+	for (auto& str : debug_output) {
+		(merged += str) += "//---------------------------\n\n";
+	}
+
+	if ( UpdateReferences )
+	{
+		FILE*	file = nullptr;
+		fopen_s( OUT &file, (std::string{DATA_PATH} + referenceFile).c_str(), "wb" );
+		CHECK_ERR( file );
+		CHECK_ERR( fwrite( merged.c_str(), sizeof(merged[0]), merged.size(), file ) == merged.size() );
+		fclose( file );
+		return true;
+	}
+
+	string	file_data;
+	{
+		FILE*	file = nullptr;
+		fopen_s( OUT &file, (std::string{DATA_PATH} + referenceFile).c_str(), "rb" );
+		CHECK_ERR( file );
+		
+		CHECK_ERR( fseek( file, 0, SEEK_END ) == 0 );
+		const long	size = ftell( file );
+		CHECK_ERR( fseek( file, 0, SEEK_SET ) == 0 );
+
+		file_data.resize( size );
+		CHECK_ERR( fread( file_data.data(), sizeof(file_data[0]), file_data.size(), file ) == file_data.size() );
+		fclose( file );
+	}
+
+	CHECK_ERR( file_data == merged );
+	return true;
+}
+
+/*
+=================================================
+	TestPerformanceOutput
+=================================================
+*/
+bool  Device::TestPerformanceOutput (vector<VkShaderModule> modules, vector<string> fnNames)
+{
+	CHECK_ERR( fnNames.size() );
+	CHECK_ERR( modules.size() );
+
+	for (auto& module : modules)
+	{
+		vector<string>	temp;
+		CHECK_ERR( _GetDebugOutput( module, readBackPtr, debugOutputSize, OUT temp ));
+		CHECK_ERR( temp.size() );
+
+		for (auto& output : temp)
+		{
+			for (auto& fn : fnNames)
+			{
+				size_t	pos = output.find( fn );
+				CHECK_ERR( pos != string::npos );
+			}
+		}
+	}
+
+	return true;
+}
+
+/*
+=================================================
+	FreeTempHandles
+=================================================
+*/
+void  Device::FreeTempHandles ()
+{
+	for (auto&[type, hnd] : tempHandles)
+	{
+		BEGIN_ENUM_CHECKS();
+		switch ( type )
+		{
+			case EHandleType::Memory :
+				vkFreeMemory( device, VkDeviceMemory(hnd), nullptr );
+				break;
+			case EHandleType::Buffer :
+				vkDestroyBuffer( device, VkBuffer(hnd), nullptr );
+				break;
+			case EHandleType::Image :
+				vkDestroyImage( device, VkImage(hnd), nullptr );
+				break;
+			case EHandleType::ImageView :
+				vkDestroyImageView( device, VkImageView(hnd), nullptr );
+				break;
+			case EHandleType::Pipeline :
+				vkDestroyPipeline( device, VkPipeline(hnd), nullptr );
+				break;
+			case EHandleType::PipelineLayout :
+				vkDestroyPipelineLayout( device, VkPipelineLayout(hnd), nullptr );
+				break;
+			case EHandleType::Shader :
+				vkDestroyShaderModule( device, VkShaderModule(hnd), nullptr );
+				break;
+			case EHandleType::DescriptorSetLayout :
+				vkDestroyDescriptorSetLayout( device, VkDescriptorSetLayout(hnd), nullptr );
+				break;
+			case EHandleType::RenderPass :
+				vkDestroyRenderPass( device, VkRenderPass(hnd), nullptr );
+				break;
+			case EHandleType::Framebuffer :
+				vkDestroyFramebuffer( device, VkFramebuffer(hnd), nullptr );
+				break;
+			case EHandleType::AccStruct :
+				vkDestroyAccelerationStructureNV( device, VkAccelerationStructureNV(hnd), nullptr );
+				break;
+		}
+		END_ENUM_CHECKS();
+	}
+	tempHandles.clear();
 }

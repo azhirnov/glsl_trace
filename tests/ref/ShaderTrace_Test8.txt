@@ -1,7 +1,7 @@
 //> gl_PrimitiveID: int {0}
 //> gl_TessCoord: float3 {0.000000, 0.000000, 1.000000}
-//> gl_TessLevelInner: float2 {0.000000, 0.000000}
-//> gl_TessLevelOuter: float4 {0.000000, 0.000000, 0.000000, 0.000000}
+//> gl_TessLevelInner: float2 {3.000000, 3.000000}
+//> gl_TessLevelOuter: float4 {1.100000, 1.100000, 1.100000, 1.100000}
 no source
 
 //> pos: float4 {2.000000, -1.000000, 0.020000, 1.000000}
@@ -19,8 +19,8 @@ no source
 
 //> gl_PrimitiveID: int {0}
 //> gl_TessCoord: float3 {0.000000, 0.500000, 0.500000}
-//> gl_TessLevelInner: float2 {0.000000, 0.000000}
-//> gl_TessLevelOuter: float4 {0.000000, 0.000000, 0.000000, 0.000000}
+//> gl_TessLevelInner: float2 {3.000000, 3.000000}
+//> gl_TessLevelOuter: float4 {1.100000, 1.100000, 1.100000, 1.100000}
 no source
 
 //> pos: float4 {0.500000, 0.500000, 0.015000, 1.000000}
@@ -38,8 +38,8 @@ no source
 
 //> gl_PrimitiveID: int {0}
 //> gl_TessCoord: float3 {0.000000, 1.000000, 0.000000}
-//> gl_TessLevelInner: float2 {0.000000, 0.000000}
-//> gl_TessLevelOuter: float4 {0.000000, 0.000000, 0.000000, 0.000000}
+//> gl_TessLevelInner: float2 {3.000000, 3.000000}
+//> gl_TessLevelOuter: float4 {1.100000, 1.100000, 1.100000, 1.100000}
 no source
 
 //> pos: float4 {-1.000000, 2.000000, 0.010000, 1.000000}
@@ -57,8 +57,8 @@ no source
 
 //> gl_PrimitiveID: int {0}
 //> gl_TessCoord: float3 {0.222214, 0.222214, 0.555573}
-//> gl_TessLevelInner: float2 {0.000000, 0.000000}
-//> gl_TessLevelOuter: float4 {0.000000, 0.000000, 0.000000, 0.000000}
+//> gl_TessLevelInner: float2 {3.000000, 3.000000}
+//> gl_TessLevelOuter: float4 {1.100000, 1.100000, 1.100000, 1.100000}
 no source
 
 //> pos: float4 {0.666718, -0.333359, 0.013334, 1.000000}
@@ -76,8 +76,8 @@ no source
 
 //> gl_PrimitiveID: int {0}
 //> gl_TessCoord: float3 {0.222214, 0.555557, 0.222229}
-//> gl_TessLevelInner: float2 {0.000000, 0.000000}
-//> gl_TessLevelOuter: float4 {0.000000, 0.000000, 0.000000, 0.000000}
+//> gl_TessLevelInner: float2 {3.000000, 3.000000}
+//> gl_TessLevelOuter: float4 {1.100000, 1.100000, 1.100000, 1.100000}
 no source
 
 //> pos: float4 {-0.333313, 0.666672, 0.010000, 1.000000}
@@ -95,8 +95,8 @@ no source
 
 //> gl_PrimitiveID: int {0}
 //> gl_TessCoord: float3 {0.500000, 0.000000, 0.500000}
-//> gl_TessLevelInner: float2 {0.000000, 0.000000}
-//> gl_TessLevelOuter: float4 {0.000000, 0.000000, 0.000000, 0.000000}
+//> gl_TessLevelInner: float2 {3.000000, 3.000000}
+//> gl_TessLevelOuter: float4 {1.100000, 1.100000, 1.100000, 1.100000}
 no source
 
 //> pos: float4 {0.500000, -1.000000, 0.010000, 1.000000}
@@ -114,8 +114,8 @@ no source
 
 //> gl_PrimitiveID: int {0}
 //> gl_TessCoord: float3 {0.500000, 0.500000, 0.000000}
-//> gl_TessLevelInner: float2 {0.000000, 0.000000}
-//> gl_TessLevelOuter: float4 {0.000000, 0.000000, 0.000000, 0.000000}
+//> gl_TessLevelInner: float2 {3.000000, 3.000000}
+//> gl_TessLevelOuter: float4 {1.100000, 1.100000, 1.100000, 1.100000}
 no source
 
 //> pos: float4 {-1.000000, 0.500000, 0.005000, 1.000000}
@@ -133,8 +133,8 @@ no source
 
 //> gl_PrimitiveID: int {0}
 //> gl_TessCoord: float3 {0.555557, 0.222229, 0.222214}
-//> gl_TessLevelInner: float2 {0.000000, 0.000000}
-//> gl_TessLevelOuter: float4 {0.000000, 0.000000, 0.000000, 0.000000}
+//> gl_TessLevelInner: float2 {3.000000, 3.000000}
+//> gl_TessLevelOuter: float4 {1.100000, 1.100000, 1.100000, 1.100000}
 no source
 
 //> pos: float4 {-0.333359, -0.333313, 0.006667, 1.000000}
@@ -152,8 +152,8 @@ no source
 
 //> gl_PrimitiveID: int {0}
 //> gl_TessCoord: float3 {1.000000, 0.000000, 0.000000}
-//> gl_TessLevelInner: float2 {0.000000, 0.000000}
-//> gl_TessLevelOuter: float4 {0.000000, 0.000000, 0.000000, 0.000000}
+//> gl_TessLevelInner: float2 {3.000000, 3.000000}
+//> gl_TessLevelOuter: float4 {1.100000, 1.100000, 1.100000, 1.100000}
 no source
 
 //> pos: float4 {-1.000000, -1.000000, 0.000000, 1.000000}

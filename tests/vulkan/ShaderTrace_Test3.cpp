@@ -63,10 +63,9 @@ extern bool ShaderTrace_Test3 (Device& vulkan)
 	uint			width = 16, height = 16;
 	VkRenderPass	render_pass;
 	VkImage			color_target;
-	VkDeviceMemory	image_mem;
 	VkFramebuffer	framebuffer;
 	CHECK_ERR( vulkan.CreateRenderTarget( VK_FORMAT_R8G8B8A8_UNORM, width, height, 0,
-										  OUT render_pass, OUT color_target, OUT image_mem, OUT framebuffer ));
+										  OUT render_pass, OUT color_target, OUT framebuffer ));
 
 
 	// create pipeline
@@ -202,22 +201,11 @@ extern bool ShaderTrace_Test3 (Device& vulkan)
 		VK_CHECK( vulkan.vkQueueSubmit( vulkan.queue, 1, &submit, VK_NULL_HANDLE ));
 		VK_CHECK( vulkan.vkQueueWaitIdle( vulkan.queue ));
 	}
+	
+	CHECK_ERR( vulkan.TestDebugTraceOutput( {frag_shader}, "ShaderTrace_Test3.txt" ));
+	
+	vulkan.FreeTempHandles();
 
-	// destroy all
-	{
-		vulkan.vkDestroyDescriptorSetLayout( vulkan.device, ds_layout, nullptr );
-		vulkan.vkDestroyShaderModule( vulkan.device, vert_shader, nullptr );
-		vulkan.vkDestroyShaderModule( vulkan.device, frag_shader, nullptr );
-		vulkan.vkDestroyPipelineLayout( vulkan.device, ppln_layout, nullptr );
-		vulkan.vkDestroyPipeline( vulkan.device, pipeline, nullptr );
-		vulkan.vkFreeMemory( vulkan.device, image_mem, nullptr );
-		vulkan.vkDestroyImage( vulkan.device, color_target, nullptr );
-		vulkan.vkDestroyRenderPass( vulkan.device, render_pass, nullptr );
-		vulkan.vkDestroyFramebuffer( vulkan.device, framebuffer, nullptr );
-	}
-	
-	//CHECK_ERR( TestDebugTraceOutput( helper, {frag_shader}, TEST_NAME + ".txt" ));
-	
 	std::cout << "ShaderTrace_Test3 - passed" << std::endl;
 	return true;
 }

@@ -1,3 +1,5 @@
+[![Build Status](https://api.travis-ci.com/azhirnov/glsl_trace.svg?branch=master)](https://travis-ci.com/azhirnov/glsl_trace)
+
 # GLSL Trace
 
 ## Features

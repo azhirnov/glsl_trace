@@ -262,8 +262,12 @@ string  TypeToString (uint rows, const std::array<T,4> &values)
 
 	str += " {";
 
-	for (uint r = 0; r < rows; ++r) {
-		str += (r ? ", " : "") + to_string( values[r] );
+	for (uint r = 0; r < rows; ++r)
+	{
+		if constexpr( std::is_same_v<T, bool> )
+			str += (r ? ", " : "") + string(values[r] ? "true" : "false");
+		else
+			str += (r ? ", " : "") + to_string( values[r] );
 	}
 	
 	str += "}\n";

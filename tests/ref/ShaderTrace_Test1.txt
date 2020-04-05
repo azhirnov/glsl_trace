@@ -54,7 +54,7 @@ no source
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-1.221442}
+//> f: float {-1.221441}
 //  k: float {0.593750}
 //  j: int {4}
 //  cos(): float {-0.118361}
@@ -62,7 +62,7 @@ no source
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-1.221442}
+//  f: float {-1.221441}
 18. if (f > 15.7f) {
 
 //> j: int {5}
@@ -148,7 +148,7 @@ no source
 //  j: int {8}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.674117}
+//> cos(): float {-0.674116}
 //  k: float {0.593750}
 //  j: int {8}
 16. *
@@ -157,7 +157,7 @@ no source
 //> f: float {0.346904}
 //  k: float {0.593750}
 //  j: int {8}
-//  cos(): float {-0.674117}
+//  cos(): float {-0.674116}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
@@ -272,7 +272,7 @@ no source
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-1.221442}
+//> f: float {-1.221441}
 //  k: float {0.593750}
 //  j: int {4}
 //  cos(): float {-0.118361}
@@ -280,7 +280,7 @@ no source
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-1.221442}
+//  f: float {-1.221441}
 18. if (f > 15.7f) {
 
 //> j: int {5}
@@ -366,7 +366,7 @@ no source
 //  j: int {8}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.674117}
+//> cos(): float {-0.674116}
 //  k: float {0.593750}
 //  j: int {8}
 16. *
@@ -375,7 +375,7 @@ no source
 //> f: float {0.346904}
 //  k: float {0.593750}
 //  j: int {8}
-//  cos(): float {-0.674117}
+//  cos(): float {-0.674116}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 

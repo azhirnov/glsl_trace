@@ -94,6 +94,7 @@ static bool CreatePipeline (Device &vulkan, VkShaderModule rayGenShader, VkShade
 		info.pPushConstantRanges	= nullptr;
 
 		VK_CHECK( vulkan.vkCreatePipelineLayout( vulkan.device, &info, nullptr, OUT &outPipelineLayout ));
+		vulkan.tempHandles.emplace_back( Device::EHandleType::PipelineLayout, uint64_t(outPipelineLayout) );
 	}
 	
 
@@ -151,6 +152,8 @@ static bool CreatePipeline (Device &vulkan, VkShaderModule rayGenShader, VkShade
 	info.layout				= outPipelineLayout;
 
 	VK_CHECK( vulkan.vkCreateRayTracingPipelinesNV( vulkan.device, VK_NULL_HANDLE, 1, &info, nullptr, OUT &outPipeline ));
+	vulkan.tempHandles.emplace_back( Device::EHandleType::Pipeline, uint64_t(outPipeline) );
+
 	return true;
 }
 
@@ -167,7 +170,6 @@ extern bool ShaderTrace_Test9 (Device& vulkan)
 	// create image
 	VkImage			image;
 	VkImageView		image_view;
-	VkDeviceMemory	image_mem;
 	uint			width = 16, height = 16;
 	{
 		VkImageCreateInfo	info = {};
@@ -185,6 +187,7 @@ extern bool ShaderTrace_Test9 (Device& vulkan)
 		info.initialLayout	= VK_IMAGE_LAYOUT_UNDEFINED;
 
 		VK_CHECK( vulkan.vkCreateImage( vulkan.device, &info, nullptr, OUT &image ));
+		vulkan.tempHandles.emplace_back( Device::EHandleType::Image, uint64_t(image) );
 
 		VkMemoryRequirements	mem_req;
 		vulkan.vkGetImageMemoryRequirements( vulkan.device, image, OUT &mem_req );
@@ -194,8 +197,11 @@ extern bool ShaderTrace_Test9 (Device& vulkan)
 		alloc_info.sType			= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		alloc_info.allocationSize	= mem_req.size;
 		CHECK_ERR( vulkan.GetMemoryTypeIndex( mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, OUT alloc_info.memoryTypeIndex ));
-
+		
+		VkDeviceMemory	image_mem;
 		VK_CHECK( vulkan.vkAllocateMemory( vulkan.device, &alloc_info, nullptr, OUT &image_mem ));
+		vulkan.tempHandles.emplace_back( Device::EHandleType::Memory, uint64_t(image_mem) );
+
 		VK_CHECK( vulkan.vkBindImageMemory( vulkan.device, image, image_mem, 0 ));
 	}
 
@@ -211,6 +217,7 @@ extern bool ShaderTrace_Test9 (Device& vulkan)
 		info.subresourceRange	= { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
 		VK_CHECK( vulkan.vkCreateImageView( vulkan.device, &info, nullptr, OUT &image_view ));
+		vulkan.tempHandles.emplace_back( Device::EHandleType::ImageView, uint64_t(image_view) );
 	}
 
 
@@ -241,6 +248,7 @@ extern bool ShaderTrace_Test9 (Device& vulkan)
 		info.pBindings		= binding;
 
 		VK_CHECK( vulkan.vkCreateDescriptorSetLayout( vulkan.device, &info, nullptr, OUT &ds1_layout ));
+		vulkan.tempHandles.emplace_back( Device::EHandleType::DescriptorSetLayout, uint64_t(ds1_layout) );
 	}
 
 	// create pipeline
@@ -250,10 +258,9 @@ extern bool ShaderTrace_Test9 (Device& vulkan)
 	
 	// create BLAS and TLAS
 	VkBuffer					shader_binding;
-	VkDeviceMemory				dev_memory;
 	VkAccelerationStructureNV	top_level_as;
 	VkAccelerationStructureNV	bottom_level_as;
-	CHECK_ERR( vulkan.CreateRayTracingScene( pipeline, NUM_GROUPS, OUT shader_binding, OUT dev_memory, OUT top_level_as, OUT bottom_level_as ));
+	CHECK_ERR( vulkan.CreateRayTracingScene( pipeline, NUM_GROUPS, OUT shader_binding, OUT top_level_as, OUT bottom_level_as ));
 	
 	// allocate descriptor set
 	{
@@ -398,26 +405,10 @@ extern bool ShaderTrace_Test9 (Device& vulkan)
 		VK_CHECK( vulkan.vkQueueWaitIdle( vulkan.queue ));
 	}
 
-	// destroy all
-	{
-		vulkan.vkDestroyDescriptorSetLayout( vulkan.device, ds1_layout, nullptr );
-		vulkan.vkDestroyDescriptorSetLayout( vulkan.device, ds2_layout, nullptr );
-		vulkan.vkDestroyShaderModule( vulkan.device, raygen_shader, nullptr );
-		vulkan.vkDestroyShaderModule( vulkan.device, miss_shader, nullptr );
-		vulkan.vkDestroyShaderModule( vulkan.device, hit_shader, nullptr );
-		vulkan.vkDestroyPipelineLayout( vulkan.device, ppln_layout, nullptr );
-		vulkan.vkDestroyPipeline( vulkan.device, pipeline, nullptr );
-		vulkan.vkDestroyImageView( vulkan.device, image_view, nullptr );
-		vulkan.vkDestroyImage( vulkan.device, image, nullptr );
-		vulkan.vkFreeMemory( vulkan.device, image_mem, nullptr );
-		vulkan.vkDestroyAccelerationStructureNV( vulkan.device, top_level_as, nullptr );
-		vulkan.vkDestroyAccelerationStructureNV( vulkan.device, bottom_level_as, nullptr );
-		vulkan.vkDestroyBuffer( vulkan.device, shader_binding, nullptr );
-		vulkan.vkFreeMemory( vulkan.device, dev_memory, nullptr );
-	}
-
-	//CHECK_ERR( TestDebugTraceOutput( helper, {raygen_shader}, TEST_NAME + ".txt" ));
+	CHECK_ERR( vulkan.TestDebugTraceOutput( {raygen_shader}, "ShaderTrace_Test9.txt" ));
 	
+	vulkan.FreeTempHandles();
+
 	std::cout << "ShaderTrace_Test9 - passed" << std::endl;
 	return true;
 }

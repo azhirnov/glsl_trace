@@ -5,6 +5,8 @@
 #include "VulkanLoader.h"
 #include <iostream>
 
+using namespace std::string_literals;
+
 enum class ETraceMode
 {
 	None,
@@ -51,6 +53,24 @@ private:
 	Debuggable_t			_debuggableShaders;
 	
 	VulkanDeviceFnTable		_deviceFnTable;
+	
+public:
+	enum class EHandleType
+	{
+		Memory,
+		Buffer,
+		Image,
+		ImageView,
+		Pipeline,
+		PipelineLayout,
+		Shader,
+		DescriptorSetLayout,
+		RenderPass,
+		Framebuffer,
+		AccStruct,
+	};
+	using TempHandles_t = vector<std::pair<EHandleType, uint64_t>>;
+	TempHandles_t		tempHandles;
 
 
 public:
@@ -66,7 +86,7 @@ public:
 
 	bool  CreateRenderTarget (VkFormat colorFormat, uint width, uint height, VkImageUsageFlags imageUsage,
 							  OUT VkRenderPass &outRenderPass, OUT VkImage &outImage,
-							  OUT VkDeviceMemory &outImageMem, OUT VkFramebuffer &outFramebuffer);
+							  OUT VkFramebuffer &outFramebuffer);
 
 	bool  CreateGraphicsPipelineVar1 (VkShaderModule vertShader, VkShaderModule fragShader,
 									  VkDescriptorSetLayout dsLayout, VkRenderPass renderPass,
@@ -81,7 +101,7 @@ public:
 								  OUT VkPipelineLayout &outPipelineLayout, OUT VkPipeline &outPipeline);
 
 	bool  CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups,
-								 OUT VkBuffer &shaderBindingTable, OUT VkDeviceMemory &outMemory,
+								 OUT VkBuffer &shaderBindingTable,
 								 OUT VkAccelerationStructureNV &topLevelAS, OUT VkAccelerationStructureNV &bottomLevelAS);
 	
 	bool Compile (OUT VkShaderModule&		shaderModule,
@@ -90,8 +110,12 @@ public:
 				  ETraceMode				mode				= ETraceMode::None,
 				  uint						dbgBufferSetIndex	= ~0u,
 				  glslang::EShTargetLanguageVersion	spvVersion	= glslang::EShTargetSpv_1_3);
+	
+	bool TestDebugTraceOutput (vector<VkShaderModule> modules, string referenceFile);
 
-	bool GetDebugOutput (VkShaderModule shaderModule, const void *ptr, VkDeviceSize maxSize, OUT vector<string> &result) const;
+	bool TestPerformanceOutput (vector<VkShaderModule> modules, vector<string> fnNames);
+
+	void  FreeTempHandles ();
 
 
 private:
@@ -105,6 +129,8 @@ private:
 	void  _ValidateInstanceLayers (INOUT vector<const char*> &layers) const;
 	void  _ValidateInstanceExtensions (INOUT vector<const char*> &ext) const;
 	void  _ValidateDeviceExtensions (INOUT vector<const char*> &ext) const;
+
+	bool  _GetDebugOutput (VkShaderModule shaderModule, const void *ptr, VkDeviceSize maxSize, OUT vector<string> &result) const;
 	
 	bool  _Compile (OUT vector<uint>&		spirvData,
 				    OUT ShaderTrace*		dbgInfo,

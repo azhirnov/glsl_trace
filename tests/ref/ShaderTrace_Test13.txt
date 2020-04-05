@@ -54,7 +54,7 @@ no source
 18. *
 19. 				cos(float(j) + k);
 
-//> f: float {-1.221442}
+//> f: float {-1.221441}
 //  k: float {0.593750}
 //  j: int {4}
 //  cos(): float {-0.118361}
@@ -62,7 +62,7 @@ no source
 19. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-1.221442}
+//  f: float {-1.221441}
 20. if (f > 15.7f) {
 
 //> j: int {5}
@@ -148,7 +148,7 @@ no source
 //  j: int {8}
 17. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.674117}
+//> cos(): float {-0.674116}
 //  k: float {0.593750}
 //  j: int {8}
 18. *
@@ -157,7 +157,7 @@ no source
 //> f: float {0.346904}
 //  k: float {0.593750}
 //  j: int {8}
-//  cos(): float {-0.674117}
+//  cos(): float {-0.674116}
 18. f += 1.2f *
 19. 				cos(float(j) + k);
 
@@ -272,7 +272,7 @@ no source
 18. *
 19. 				cos(float(j) + k);
 
-//> f: float {-1.221442}
+//> f: float {-1.221441}
 //  k: float {0.593750}
 //  j: int {4}
 //  cos(): float {-0.118361}
@@ -280,7 +280,7 @@ no source
 19. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-1.221442}
+//  f: float {-1.221441}
 20. if (f > 15.7f) {
 
 //> j: int {5}
@@ -366,7 +366,7 @@ no source
 //  j: int {8}
 17. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.674117}
+//> cos(): float {-0.674116}
 //  k: float {0.593750}
 //  j: int {8}
 18. *
@@ -375,7 +375,7 @@ no source
 //> f: float {0.346904}
 //  k: float {0.593750}
 //  j: int {8}
-//  cos(): float {-0.674117}
+//  cos(): float {-0.674116}
 18. f += 1.2f *
 19. 				cos(float(j) + k);
 
@@ -452,28 +452,6 @@ no source
 
 //> (out): float4 {1.000000, 0.300000, 0.000000, 0.800000}
 //  gl_VertexIndex: int {0}
-24. out_Color = mix(vec4(1.0, 0.3, 0.0, 0.8), vec4(0.6, 0.9, 0.1, 1.0), float(gl_VertexIndex) / float(g_Positions.length()));
-
-//---------------------------
-
-//> gl_VertexIndex: int {2}
-//> gl_InstanceIndex: int {0}
-no source
-
-//> out_Position: float4 {2.000000, -1.000000, 0.020000, 1.000000}
-//  gl_VertexIndex: int {2}
-21. out_Position = vec4( g_Positions[gl_VertexIndex], float(gl_VertexIndex) * 0.01f, 1.0f );
-
-//> (out): float4 {2.000000, -1.000000, 0.020000, 1.000000}
-//  out_Position: float4 {2.000000, -1.000000, 0.020000, 1.000000}
-22. gl_Position = out_Position;
-
-//> (out): float2 {1.500000, 0.000000}
-//  gl_VertexIndex: int {2}
-23. out_Texcoord = g_Positions[gl_VertexIndex].xy * 0.5f + 0.5f;
-
-//> (out): float4 {0.840000, 0.540000, 0.040000, 0.880000}
-//  gl_VertexIndex: int {2}
 24. out_Color = mix(vec4(1.0, 0.3, 0.0, 0.8), vec4(0.6, 0.9, 0.1, 1.0), float(gl_VertexIndex) / float(g_Positions.length()));
 
 //---------------------------
