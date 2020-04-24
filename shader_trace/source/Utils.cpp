@@ -559,11 +559,19 @@ string  GetFunctionName (TIntermOperator *op)
 		case TOperator::EOpBitCount : return "bitCount";
 		case TOperator::EOpFindLSB : return "findLSB";
 		case TOperator::EOpFindMSB : return "findMSB";
+		#ifdef USE_NV_RAY_TRACING
+		case TOperator::EOpTraceNV : return "trace";
+		case TOperator::EOpReportIntersectionNV : return "reportIntersection";
+		case TOperator::EOpIgnoreIntersectionNV : return "ignoreIntersection";
+		case TOperator::EOpTerminateRayNV : return "terminateRay";
+		case TOperator::EOpExecuteCallableNV : return "executeCallable";
+		#else
 		case TOperator::EOpTrace : return "trace";
 		case TOperator::EOpReportIntersection : return "reportIntersection";
 		case TOperator::EOpIgnoreIntersection : return "ignoreIntersection";
 		case TOperator::EOpTerminateRay : return "terminateRay";
 		case TOperator::EOpExecuteCallable : return "executeCallable";
+		#endif
 		case TOperator::EOpWritePackedPrimitiveIndices4x8NV : return "writePackedPrimitiveIndices4x8NV";
 		// TODO
 		/*EOpRayQueryInitialize,

@@ -9,7 +9,7 @@ message( STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} (${CMAKE_CXX_COMPILER_VERSIO
 message( STATUS "target system: ${CMAKE_SYSTEM_NAME} (${CMAKE_SYSTEM_VERSION})" )
 message( STATUS "host system: ${CMAKE_HOST_SYSTEM_NAME} (${CMAKE_HOST_SYSTEM_VERSION})" )
 
-set( EXTERNALS_USE_STABLE_VERSIONS OFF CACHE BOOL "use last stable version instead of master branch" )
+set( EXTERNALS_USE_STABLE_VERSIONS ON CACHE BOOL "use last stable version instead of master branch" )
 set( ENABLE_TESTS ON CACHE BOOL "tests" )
 
 set( CMAKE_DEBUG_POSTFIX "d" )
