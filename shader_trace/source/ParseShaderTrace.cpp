@@ -252,22 +252,53 @@ bool  Trace::AddTime (const ExprInfo &expr, uint rows, uint cols, const uint *da
 	TypeToString
 =================================================
 */
+inline string  ToString (bool value)
+{
+	return value ? "true" : "false";
+}
+
+inline string  ToString (float value)
+{
+	float	f		 = std::abs(value);
+	bool	exp		 = f != 0.0f and (f < 1.0e-4f or f > 1.0e+4f);
+	char	buf[128] = {};
+	int		len		 = std::snprintf( buf, sizeof(buf), (exp ? "%1.6e" : "%0.6f"), value );
+	return buf;
+}
+
+inline string  ToString (double value)
+{
+	double	f		 = std::abs(value);
+	bool	exp		 = f != 0.0 and (f < 1.0e-4 or f > 1.0e+4);
+	char	buf[128] = {};
+	int		len		 = std::snprintf( buf, sizeof(buf), (exp ? "%1.8e" : "%0.8f"), value );
+	return buf;
+}
+
 template <typename T>
-string  TypeToString (uint rows, const std::array<T,4> &values)
+inline string  ToString (T value)
+{
+	return to_string( value );
+}
+
+/*
+=================================================
+	TypeToString
+=================================================
+*/
+template <typename T>
+inline string  TypeToString (uint rows, const std::array<T,4> &values)
 {
 	string		str;
 
 	if ( rows > 1 )
-		str += to_string( rows );
+		str += ToString( rows );
 
 	str += " {";
 
 	for (uint r = 0; r < rows; ++r)
 	{
-		if constexpr( std::is_same_v<T, bool> )
-			str += (r ? ", " : "") + string(values[r] ? "true" : "false");
-		else
-			str += (r ? ", " : "") + to_string( values[r] );
+		str += (r ? ", " : "") + ToString( values[r] );
 	}
 	
 	str += "}\n";

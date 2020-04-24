@@ -18,7 +18,7 @@
 ## How to use
 **Setup:**</br> 
  * (__OpenGL__) Create shader and shader program for reqular rendering.
- * Use [glslang](https://github.com/KhronosGroup/glslang) to parse GLSL or HLSL source code
+ * Use [glslang](https://github.com/KhronosGroup/glslang) to parse GLSL or HLSL source code and build AST
  * (__Vulkan__) Convert glslang AST to SPIRV and create pipeline for reqular rendering.
  * Create `ShaderTrace` object to store debug information
  * Get glslang AST `TProgram::getIntermediate(EShLanguage stage)`
@@ -48,6 +48,7 @@
  * AST processing: insert time measurement into user-defined functions.
  * Result parsing: calculate average time and a fraction of the total shader execution time.
  
+ **All:**
  * Shader trace recorded to the storage buffer as forward list using atomic operations.
  * Each `ShaderTrace` object has unique number to determine different shaders when parsing result.
  * Allowed debugging on different shader stages in single draw/dispatch call.
