@@ -2899,22 +2899,23 @@ static TIntermOperator*  CreateRayTracingShaderIsDebugInvocation (DebugInfo &dbg
 */
 static bool InsertGlobalVariablesAndBuffers (TIntermAggregate* linkerObjs, TIntermAggregate* globalVars, uint initialPosition, DebugInfo &dbgInfo)
 {
-	// "bool dbg_IsEnabled"
+	// "bool dbg_EnableRecording"
 	TPublicType		type;	type.init({});
 	type.basicType			= TBasicType::EbtBool;
 	type.qualifier.storage	= TStorageQualifier::EvqGlobal;
 
-	TIntermSymbol*			is_debug_enabled = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "dbg_IsEnabled", TType{type} };
-	dbgInfo.CacheSymbolNode( is_debug_enabled );
-	linkerObjs->getSequence().insert( linkerObjs->getSequence().begin(), is_debug_enabled );
+	TIntermSymbol*			is_enable_recording = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "dbg_EnableRecording", TType{type} };
+	dbgInfo.CacheSymbolNode( is_enable_recording );
+	linkerObjs->getSequence().insert( linkerObjs->getSequence().begin(), is_enable_recording );
 	
-	// "dbg_IsEnabled = ..."
-	TIntermBinary*			init_debug_enabled = new TIntermBinary{ TOperator::EOpAssign };
+	// "dbg_EnableRecording = ..."
+	TIntermBinary*			init_enable_recording = new TIntermBinary{ TOperator::EOpAssign };
 	type.qualifier.storage = TStorageQualifier::EvqTemporary;
-	init_debug_enabled->setType( TType{type} );
-	init_debug_enabled->setLeft( is_debug_enabled );
-	globalVars->getSequence().insert( globalVars->getSequence().begin(), init_debug_enabled );
+	init_enable_recording->setType( TType{type} );
+	init_enable_recording->setLeft( is_enable_recording );
+	globalVars->getSequence().insert( globalVars->getSequence().begin(), init_enable_recording );
 	
+	// "dbg_EnableRecording = <check invocation>"
 	BEGIN_ENUM_CHECKS();
 	switch ( dbgInfo.GetShaderType() )
 	{
@@ -2929,12 +2930,12 @@ static bool InsertGlobalVariablesAndBuffers (TIntermAggregate* linkerObjs, TInte
 			TConstUnionArray		false_value(1);	false_value[0].setBConst( false );
 			TIntermConstantUnion*	const_false		= new TIntermConstantUnion{ false_value, TType{type} };
 			
-			init_debug_enabled->setRight( const_false );
+			init_enable_recording->setRight( const_false );
 			break;
 		}
 
-		case EShLangFragment :		init_debug_enabled->setRight( CreateFragmentShaderIsDebugInvocation( dbgInfo ));	break;
-		case EShLangCompute :		init_debug_enabled->setRight( CreateComputeShaderIsDebugInvocation( dbgInfo ));		break;
+		case EShLangFragment :		init_enable_recording->setRight( CreateFragmentShaderIsDebugInvocation( dbgInfo ));	break;
+		case EShLangCompute :		init_enable_recording->setRight( CreateComputeShaderIsDebugInvocation( dbgInfo ));		break;
 		
 		#ifdef USE_NV_RAY_TRACING
 		case EShLangRayGenNV :
@@ -2942,20 +2943,35 @@ static bool InsertGlobalVariablesAndBuffers (TIntermAggregate* linkerObjs, TInte
 		case EShLangAnyHitNV :
 		case EShLangClosestHitNV :
 		case EShLangMissNV :
-		case EShLangCallableNV :	init_debug_enabled->setRight( CreateRayTracingShaderIsDebugInvocation( dbgInfo ));		break;
+		case EShLangCallableNV :	init_enable_recording->setRight( CreateRayTracingShaderIsDebugInvocation( dbgInfo ));		break;
 		#else
 		case EShLangRayGen :
 		case EShLangIntersect :
 		case EShLangAnyHit :
 		case EShLangClosestHit :
 		case EShLangMiss :
-		case EShLangCallable :		init_debug_enabled->setRight( CreateRayTracingShaderIsDebugInvocation( dbgInfo ));		break;
+		case EShLangCallable :		init_enable_recording->setRight( CreateRayTracingShaderIsDebugInvocation( dbgInfo ));		break;
 		#endif
 
 		case EShLangCount :
 		default :					RETURN_ERR( "not supported" );
 	}
 	END_ENUM_CHECKS();
+
+	
+	// "bool dbg_IsEnabled"
+	type.qualifier.storage	= TStorageQualifier::EvqGlobal;
+	TIntermSymbol*			is_debug_enabled = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "dbg_IsEnabled", TType{type} };
+	dbgInfo.CacheSymbolNode( is_debug_enabled );
+	linkerObjs->getSequence().insert( linkerObjs->getSequence().begin(), is_debug_enabled );
+	
+	// "dbg_IsEnabled = false"
+	TIntermBinary*			init_debug_enabled	= new TIntermBinary{ TOperator::EOpAssign };
+	type.qualifier.storage = TStorageQualifier::EvqTemporary;
+	init_debug_enabled->setType( TType{type} );
+	init_debug_enabled->setLeft( is_debug_enabled );
+	init_debug_enabled->setRight( is_enable_recording );
+	globalVars->getSequence().insert( globalVars->getSequence().begin() + 1, init_debug_enabled );
 
 
 	// "uint dbg_LastPosition"
@@ -2968,14 +2984,14 @@ static bool InsertGlobalVariablesAndBuffers (TIntermAggregate* linkerObjs, TInte
 	
 	// "dbg_LastPosition = ~0u"
 	type.qualifier.storage = TStorageQualifier::EvqConst;
-	TConstUnionArray		init_value(1);	init_value[0].setUConst( initialPosition );
-	TIntermConstantUnion*	init_const		= new TIntermConstantUnion{ init_value, TType{type} };
+	TConstUnionArray		init_uvalue(1);	init_uvalue[0].setUConst( initialPosition );
+	TIntermConstantUnion*	init_uconst		= new TIntermConstantUnion{ init_uvalue, TType{type} };
 	TIntermBinary*			init_pos		= new TIntermBinary{ TOperator::EOpAssign };
 		
 	type.qualifier.storage = TStorageQualifier::EvqTemporary;
 	init_pos->setType( TType{type} );
 	init_pos->setLeft( last_pos );
-	init_pos->setRight( init_const );
+	init_pos->setRight( init_uconst );
 	globalVars->getSequence().insert( globalVars->getSequence().begin(), init_pos );
 	
 
@@ -3012,30 +3028,89 @@ static bool CreateEnableIfBody (TIntermAggregate* fnDecl, DebugInfo &dbgInfo)
 		CHECK_ERR( body );
 	}
 	
-	TIntermSymbol*		is_debug_enabled = dbgInfo.GetCachedSymbolNode( "dbg_IsEnabled" );
-	TIntermAggregate*	branch_body		 = RecordShaderInfo( TSourceLoc{}, dbgInfo );
-	CHECK_ERR( is_debug_enabled and branch_body );
+	TIntermSymbol*		is_enable_recording = dbgInfo.GetCachedSymbolNode( "dbg_EnableRecording" );
+	TIntermSymbol*		is_debug_enabled	= dbgInfo.GetCachedSymbolNode( "dbg_IsEnabled" );
+	TIntermAggregate*	branch_body			= RecordShaderInfo( TSourceLoc{}, dbgInfo );
+	CHECK_ERR( is_enable_recording and is_debug_enabled and branch_body );
 
 	TPublicType		type;	type.init({});
 	type.basicType			= TBasicType::EbtBool;
 	type.qualifier.storage	= TStorageQualifier::EvqTemporary;
 
-	// "not dbg_IsEnabled"
+	// "not dbg_EnableRecording"
 	TIntermUnary*		condition	= new TIntermUnary{ TOperator::EOpLogicalNot };
 	condition->setType( TType{type} );
-	condition->setOperand( is_debug_enabled );
+	condition->setOperand( is_enable_recording );
 
-	// "if ( not dbg_IsEnabled ) {...}"
+	// "if ( not dbg_EnableRecording ) {...}"
 	TIntermSelection*	selection	= new TIntermSelection{ arg, branch_body, nullptr };
 	selection->setType( TType{EbtVoid} );
 	body->getSequence().push_back( selection );
 
-	// "dbg_IsEnabled = arg"
+	// "dbg_EnableRecording = arg"
 	TIntermBinary*	assign = new TIntermBinary{ TOperator::EOpAssign };
+	assign->setType( TType{type} );
+	assign->setLeft( is_enable_recording );
+	assign->setRight( arg );
+	branch_body->getSequence().insert( branch_body->getSequence().begin(), assign );
+	
+	// "dbg_IsEnabled = arg"
+	assign = new TIntermBinary{ TOperator::EOpAssign };
 	assign->setType( TType{type} );
 	assign->setLeft( is_debug_enabled );
 	assign->setRight( arg );
-	branch_body->getSequence().insert( branch_body->getSequence().begin(), assign );
+	branch_body->getSequence().insert( branch_body->getSequence().begin() + 1, assign );
+
+	return true;
+}
+
+/*
+=================================================
+	CreatePauseBody
+=================================================
+*/
+static bool  CreatePauseBody (TIntermAggregate* fnDecl, DebugInfo &dbgInfo)
+{
+	CHECK_ERR( fnDecl->getName() == "dbg_PauseTraceRecording(b1;" );
+	CHECK_ERR( fnDecl->getSequence().size() >= 1 );
+	
+	auto*	params = fnDecl->getSequence()[0]->getAsAggregate();
+	CHECK_ERR( params and params->getOp() == TOperator::EOpParameters );
+
+	TIntermTyped*		arg		= params->getSequence()[0]->getAsTyped();
+	CHECK_ERR( arg );
+
+	TIntermAggregate*	body	= nullptr;
+
+	if ( fnDecl->getSequence().size() == 1 )
+	{
+		body = new TIntermAggregate{ TOperator::EOpSequence };
+		fnDecl->getSequence().push_back( body );
+	}
+	else
+	{
+		body = fnDecl->getSequence()[1]->getAsAggregate();
+		CHECK_ERR( body );
+	}
+	
+	TIntermSymbol*		is_debug_enabled = dbgInfo.GetCachedSymbolNode( "dbg_IsEnabled" );
+	CHECK_ERR( is_debug_enabled );
+
+	TPublicType		type;	type.init({});
+	type.basicType			= TBasicType::EbtBool;
+	type.qualifier.storage	= TStorageQualifier::EvqTemporary;
+	
+	// "not arg"
+	TIntermUnary*		not_arg	= new TIntermUnary{ TOperator::EOpLogicalNot };
+	not_arg->setType( TType{type} );
+	not_arg->setOperand( arg );
+
+	// "dbg_IsEnabled = not arg"
+	TIntermBinary*	assign = new TIntermBinary{ TOperator::EOpAssign };
+	assign->setType( TType{type} );
+	assign->setLeft( is_debug_enabled );
+	assign->setRight( not_arg );
+	body->getSequence().push_back( assign );
 
 	return true;
 }
@@ -3098,6 +3173,11 @@ static bool CreateDebugTraceFunctions (TIntermNode* root, uint initialPosition, 
 		if ( aggr2->getName().rfind( "dbg_EnableTraceRecording(", 0 ) == 0 )
 		{
 			CHECK_ERR( CreateEnableIfBody( INOUT aggr2, dbgInfo ));
+		}
+		else
+		if ( aggr2->getName().rfind( "dbg_PauseTraceRecording(", 0 ) == 0 )
+		{
+			CHECK_ERR( CreatePauseBody( INOUT aggr2, dbgInfo ));
 		}
 	}
 

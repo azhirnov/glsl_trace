@@ -4155,7 +4155,7 @@ bool  RecursiveProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 		 node->getName() == "gl_MeshViewCountNV"		or
 		 // ray generation shader
 		 node->getName() == RT_LaunchID					or
-		 node->getName() == "gl_LaunchSizeNV"			or
+		 node->getName() == RT_LaunchSize				or
 		 // ray intersection & any-hit & closest-hit & miss shaders
 		 //		reuse 'gl_LaunchID'
 		 //		reuse 'gl_PrimitiveID'

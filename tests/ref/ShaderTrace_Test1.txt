@@ -1,4 +1,4 @@
-//> gl_FragCoord: float4 {8.500000, 8.500000, 0.010625, 1.000000}
+//> gl_FragCoord: float4 {8.500000, 8.500000, 0.505313, 1.000000}
 //> gl_PrimitiveID: int {0}
 //> in_Position: float4 {0.062500, 0.062500, 0.010625, 1.000000}
 //> (out): float4 {0.915000, 0.427500, 0.021250, 0.842500}
@@ -23,21 +23,21 @@ no source
 //  j: int {3}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.899507}
+//> cos(): float {-0.899526}
 //  k: float {0.593750}
 //  j: int {3}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-1.079408}
+//> f: float {-1.079431}
 //  k: float {0.593750}
 //  j: int {3}
-//  cos(): float {-0.899507}
+//  cos(): float {-0.899526}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-1.079408}
+//  f: float {-1.079431}
 18. if (f > 15.7f) {
 
 //> j: int {4}
@@ -48,21 +48,21 @@ no source
 //  j: int {4}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.118361}
+//> cos(): float {-0.118363}
 //  k: float {0.593750}
 //  j: int {4}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-1.221441}
+//> f: float {-1.221467}
 //  k: float {0.593750}
 //  j: int {4}
-//  cos(): float {-0.118361}
+//  cos(): float {-0.118363}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-1.221441}
+//  f: float {-1.221467}
 18. if (f > 15.7f) {
 
 //> j: int {5}
@@ -73,21 +73,21 @@ no source
 //  j: int {5}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {0.771605}
+//> cos(): float {0.771613}
 //  k: float {0.593750}
 //  j: int {5}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-0.295515}
+//> f: float {-0.295531}
 //  k: float {0.593750}
 //  j: int {5}
-//  cos(): float {0.771605}
+//  cos(): float {0.771613}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-0.295515}
+//  f: float {-0.295531}
 18. if (f > 15.7f) {
 
 //> j: int {6}
@@ -98,21 +98,21 @@ no source
 //  j: int {6}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {0.952161}
+//> cos(): float {0.952186}
 //  k: float {0.593750}
 //  j: int {6}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {0.847078}
+//> f: float {0.847092}
 //  k: float {0.593750}
 //  j: int {6}
-//  cos(): float {0.952161}
+//  cos(): float {0.952186}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {0.847078}
+//  f: float {0.847092}
 18. if (f > 15.7f) {
 
 //> j: int {7}
@@ -123,21 +123,21 @@ no source
 //  j: int {7}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {0.257305}
+//> cos(): float {0.257311}
 //  k: float {0.593750}
 //  j: int {7}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {1.155844}
+//> f: float {1.155865}
 //  k: float {0.593750}
 //  j: int {7}
-//  cos(): float {0.257305}
+//  cos(): float {0.257311}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {1.155844}
+//  f: float {1.155865}
 18. if (f > 15.7f) {
 
 //> j: int {8}
@@ -148,21 +148,21 @@ no source
 //  j: int {8}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.674116}
+//> cos(): float {-0.674122}
 //  k: float {0.593750}
 //  j: int {8}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {0.346904}
+//> f: float {0.346919}
 //  k: float {0.593750}
 //  j: int {8}
-//  cos(): float {-0.674116}
+//  cos(): float {-0.674122}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {0.346904}
+//  f: float {0.346919}
 18. if (f > 15.7f) {
 
 //> j: int {9}
@@ -173,21 +173,21 @@ no source
 //  j: int {9}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.985758}
+//> cos(): float {-0.985789}
 //  k: float {0.593750}
 //  j: int {9}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-0.836006}
+//> f: float {-0.836028}
 //  k: float {0.593750}
 //  j: int {9}
-//  cos(): float {-0.985758}
+//  cos(): float {-0.985789}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-0.836006}
+//  f: float {-0.836028}
 18. if (f > 15.7f) {
 
 //> j: int {10}
@@ -198,17 +198,17 @@ no source
 //  j: int {10}
 15. for (int j = i; j < 10; ++j) {
 
-//> fract(): float {0.757744}
+//> fract(): float {0.757722}
 //  k: float {0.593750}
-//  f: float {-0.836006}
+//  f: float {-0.836028}
 23. return fract(f + k);
 
-//> c0: float {0.757744}
+//> c0: float {0.757722}
 //  in_Position: float4 {0.062500, 0.062500, 0.010625, 1.000000}
 29. c0 = Fn1( 3, in_Texcoord.x + in_Position.y, c1.x );
 
-//> out_Color: float2 {0.000000, 11.757744}
-//  c0: float {0.757744}
+//> out_Color: float2 {0.000000, 11.757723}
+//  c0: float {0.757722}
 30. out_Color[1] = c0 + float(c1.x);
 
 //> (out): void
@@ -216,7 +216,7 @@ no source
 
 //---------------------------
 
-//> gl_FragCoord: float4 {8.500000, 8.500000, 0.028403, 1.000000}
+//> gl_FragCoord: float4 {8.500000, 8.500000, 0.514201, 1.000000}
 //> gl_PrimitiveID: int {2}
 //> in_Position: float4 {0.062500, 0.062500, 0.028403, 1.000000}
 //> (out): float4 {0.772778, 0.640833, 0.056806, 0.913611}
@@ -241,21 +241,21 @@ no source
 //  j: int {3}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.899507}
+//> cos(): float {-0.899526}
 //  k: float {0.593750}
 //  j: int {3}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-1.079408}
+//> f: float {-1.079431}
 //  k: float {0.593750}
 //  j: int {3}
-//  cos(): float {-0.899507}
+//  cos(): float {-0.899526}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-1.079408}
+//  f: float {-1.079431}
 18. if (f > 15.7f) {
 
 //> j: int {4}
@@ -266,21 +266,21 @@ no source
 //  j: int {4}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.118361}
+//> cos(): float {-0.118363}
 //  k: float {0.593750}
 //  j: int {4}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-1.221441}
+//> f: float {-1.221467}
 //  k: float {0.593750}
 //  j: int {4}
-//  cos(): float {-0.118361}
+//  cos(): float {-0.118363}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-1.221441}
+//  f: float {-1.221467}
 18. if (f > 15.7f) {
 
 //> j: int {5}
@@ -291,21 +291,21 @@ no source
 //  j: int {5}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {0.771605}
+//> cos(): float {0.771613}
 //  k: float {0.593750}
 //  j: int {5}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-0.295515}
+//> f: float {-0.295531}
 //  k: float {0.593750}
 //  j: int {5}
-//  cos(): float {0.771605}
+//  cos(): float {0.771613}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-0.295515}
+//  f: float {-0.295531}
 18. if (f > 15.7f) {
 
 //> j: int {6}
@@ -316,21 +316,21 @@ no source
 //  j: int {6}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {0.952161}
+//> cos(): float {0.952186}
 //  k: float {0.593750}
 //  j: int {6}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {0.847078}
+//> f: float {0.847092}
 //  k: float {0.593750}
 //  j: int {6}
-//  cos(): float {0.952161}
+//  cos(): float {0.952186}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {0.847078}
+//  f: float {0.847092}
 18. if (f > 15.7f) {
 
 //> j: int {7}
@@ -341,21 +341,21 @@ no source
 //  j: int {7}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {0.257305}
+//> cos(): float {0.257311}
 //  k: float {0.593750}
 //  j: int {7}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {1.155844}
+//> f: float {1.155865}
 //  k: float {0.593750}
 //  j: int {7}
-//  cos(): float {0.257305}
+//  cos(): float {0.257311}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {1.155844}
+//  f: float {1.155865}
 18. if (f > 15.7f) {
 
 //> j: int {8}
@@ -366,21 +366,21 @@ no source
 //  j: int {8}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.674116}
+//> cos(): float {-0.674122}
 //  k: float {0.593750}
 //  j: int {8}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {0.346904}
+//> f: float {0.346919}
 //  k: float {0.593750}
 //  j: int {8}
-//  cos(): float {-0.674116}
+//  cos(): float {-0.674122}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {0.346904}
+//  f: float {0.346919}
 18. if (f > 15.7f) {
 
 //> j: int {9}
@@ -391,21 +391,21 @@ no source
 //  j: int {9}
 15. for (int j = i; j < 10; ++j) {
 
-//> cos(): float {-0.985758}
+//> cos(): float {-0.985789}
 //  k: float {0.593750}
 //  j: int {9}
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-0.836006}
+//> f: float {-0.836028}
 //  k: float {0.593750}
 //  j: int {9}
-//  cos(): float {-0.985758}
+//  cos(): float {-0.985789}
 16. f += 1.2f *
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-0.836006}
+//  f: float {-0.836028}
 18. if (f > 15.7f) {
 
 //> j: int {10}
@@ -416,17 +416,17 @@ no source
 //  j: int {10}
 15. for (int j = i; j < 10; ++j) {
 
-//> fract(): float {0.757744}
+//> fract(): float {0.757722}
 //  k: float {0.593750}
-//  f: float {-0.836006}
+//  f: float {-0.836028}
 23. return fract(f + k);
 
-//> c0: float {0.757744}
+//> c0: float {0.757722}
 //  in_Position: float4 {0.062500, 0.062500, 0.028403, 1.000000}
 29. c0 = Fn1( 3, in_Texcoord.x + in_Position.y, c1.x );
 
-//> out_Color: float2 {0.000000, 11.757744}
-//  c0: float {0.757744}
+//> out_Color: float2 {0.000000, 11.757723}
+//  c0: float {0.757722}
 30. out_Color[1] = c0 + float(c1.x);
 
 //> (out): void

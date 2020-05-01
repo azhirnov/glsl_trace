@@ -552,6 +552,8 @@ bool  ShaderTrace::ParseShaderTrace (const void *ptr, uint64_t maxSize, OUT vect
 	uint const*		start_ptr	= static_cast<uint const*>(ptr) + _dataOffset / sizeof(uint);
 	uint const*		end_ptr		= start_ptr + min( count, (maxSize - _dataOffset) / sizeof(uint) );
 	vector<Trace>	shaders;
+
+	ASSERT( (count / sizeof(uint)) <= maxSize );
 	
 	for (auto data_ptr = start_ptr; data_ptr < end_ptr;)
 	{
@@ -561,7 +563,7 @@ bool  ShaderTrace::ParseShaderTrace (const void *ptr, uint64_t maxSize, OUT vect
 		uint		type		= *(data_ptr++);
 		TBasicType	t_basic		= TBasicType(type & 0xFF);
 		uint		row_size	= (type >> 8) & 0xF;					// for scalar, vector and matrix
-		uint		col_size	= max(1u, (type >> 12) & 0xF );	// only for matrix
+		uint		col_size	= max(1u, (type >> 12) & 0xF );			// only for matrix
 		uint const*	data		= data_ptr;
 		Trace*		trace		= nullptr;
 
