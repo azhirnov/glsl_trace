@@ -9,6 +9,11 @@ target_link_libraries( "Tests.Vulkan" PUBLIC "ShaderTrace" )
 target_link_libraries( "Tests.Vulkan" PUBLIC "GLFW-lib" )
 target_link_libraries( "Tests.Vulkan" PUBLIC "Vulkan-lib" )
 
+if (TRUE)
+	target_link_libraries( "Tests.Vulkan" PUBLIC "SPIRV-Cross-lib" )
+	target_compile_definitions( "Tests.Vulkan" PUBLIC ENABLE_SPIRV_CROSS )
+endif ()
+
 target_compile_definitions( "Tests.Vulkan" PUBLIC "DATA_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/../ref/\"" )
 target_compile_definitions( "Tests.Vulkan" PUBLIC VK_NO_PROTOTYPES )
 

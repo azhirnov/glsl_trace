@@ -19,6 +19,7 @@ using uint = uint32_t;
 
 #define HIGH_DETAIL_TRACE
 #define USE_NV_RAY_TRACING
+#define USE_STORAGE_QUALIFIERS
 
 //#undef NDEBUG
 #include <assert.h>

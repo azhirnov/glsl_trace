@@ -6,6 +6,10 @@ using namespace glslang;
 using VariableID = ShaderTrace::VariableID;
 
 namespace {
+
+	//
+	// Debug Info
+	//
 	struct DebugInfo
 	{
 	public:
@@ -22,21 +26,21 @@ namespace {
 
 		struct VariableInfo
 		{
-			VariableID				id;
+			VariableID			id;
 			string				name;
 			vector<TSourceLoc>	locations;
 		};
 
 		struct FnCallLocation
 		{
-			string		fnName;
+			string			fnName;
 			TSourceLoc		loc;
 
-			bool operator == (const FnCallLocation &) const;
+			ND_ bool operator == (const FnCallLocation &) const;
 		};
 
 		struct FnCallLocationHash {
-			size_t operator () (const FnCallLocation &) const;
+			ND_ size_t operator () (const FnCallLocation &) const;
 		};
 
 		struct FieldInfo
@@ -44,11 +48,11 @@ namespace {
 			int		baseId		= 0;
 			int		fieldIndex	= 0;
 
-			bool operator == (const FieldInfo &) const;
+			ND_ bool operator == (const FieldInfo &) const;
 		};
 
 		struct FieldInfoHash {
-			size_t operator () (const FieldInfo &) const;
+			ND_ size_t operator () (const FieldInfo &) const;
 		};
 
 		using SymbolLocations_t		= unordered_map< int, vector<TIntermSymbol *> >;
@@ -79,14 +83,17 @@ namespace {
 
 		FileMap_t const&		_includedFilesMap;
 
+		const string			_entryName;
+
 		const EShLanguage		_shLang;
 		bool					_isOpenGL		= false;
 
 
 	public:
-		DebugInfo (EShLanguage shLang, OUT ExprInfos_t &exprLoc, const FileMap_t &includedFiles) :
+		DebugInfo (EShLanguage shLang, const string &entry, OUT ExprInfos_t &exprLoc, const FileMap_t &includedFiles) :
 			_exprLocations{ exprLoc },
 			_includedFilesMap{ includedFiles },
+			_entryName{ entry },
 			_shLang{ shLang }
 		{}
 
@@ -111,6 +118,8 @@ namespace {
 
 		void					AddSymbol (TIntermSymbol* node);
 		ND_ int					GetUniqueSymbolID ()							{ return ++_maxSymbolId; }
+
+		ND_ string const&		GetEntryPoint ()						const	{ return _entryName; }
 
 
 		void CacheSymbolNode (TIntermSymbol* node)
@@ -140,13 +149,12 @@ namespace {
 		void		_GetVariableID (TIntermNode* node, OUT VariableID &id, OUT uint &swizzle);
 		ND_ uint	_GetSourceId (const TSourceLoc &) const;
 	};
-}
 //-----------------------------------------------------------------------------
 
 
 
 static bool RecursiveProcessNode (TIntermNode* node, DebugInfo &dbgInfo);
-static void CreateShaderDebugStorage (uint setIndex, DebugInfo &dbgInfo, OUT uint64_t &posOffset, OUT uint64_t &dataOffset);
+static void CreateShaderDebugStorage (uint descSetIndex, DebugInfo &dbgInfo, OUT uint64_t &posOffset, OUT uint64_t &dataOffset);
 static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo);
 static bool CreateDebugTraceFunctions (TIntermNode* root, uint initialPosition, DebugInfo &dbgInfo);
 static TIntermAggregate*  RecordShaderInfo (const TSourceLoc &loc, DebugInfo &dbgInfo);
@@ -156,7 +164,7 @@ static TIntermAggregate*  RecordShaderInfo (const TSourceLoc &loc, DebugInfo &db
 	CombineHash
 =================================================
 */
-inline size_t CombineHash (size_t lhs, size_t rhs)
+ND_ inline size_t CombineHash (size_t lhs, size_t rhs)
 {
 	const size_t	mask	= (sizeof(lhs)*8 - 1);
 	size_t			shift	= 4;
@@ -164,41 +172,6 @@ inline size_t CombineHash (size_t lhs, size_t rhs)
 	shift &= mask;
 	return lhs ^ ((rhs << shift) | (rhs >> ( ~(shift-1) & mask )));
 }
-
-/*
-=================================================
-	InsertTraceRecording
-=================================================
-*/
-bool ShaderTrace::InsertTraceRecording (TIntermediate &intermediate, uint setIndex)
-{
-	DebugInfo		dbg_info{ intermediate.getStage(), OUT _exprLocations, _fileMap };
-
-	TIntermNode*	root = intermediate.getTreeRoot();
-	CHECK_ERR( root );
-
-	_initialPosition = uint(CombineHash( std::hash<void*>{}( this ), setIndex+1 ));
-	ASSERT( _initialPosition != 0 );
-	_initialPosition |= 0x80000000u;
-
-	CreateShaderDebugStorage( setIndex, dbg_info, OUT _posOffset, OUT _dataOffset );
-
-	dbg_info.Enter( root );
-	{
-		CHECK_ERR( RecursiveProcessNode( root, dbg_info ));
-		CHECK( not dbg_info.GetInjection() );
-
-		CreateShaderBuiltinSymbols( root, dbg_info );
-
-		CHECK_ERR( CreateDebugTraceFunctions( root, _initialPosition, dbg_info ));
-	}
-	dbg_info.Leave( root );
-	dbg_info.PostProcess( OUT _varNames );
-	return true;
-}
-//-----------------------------------------------------------------------------
-
-
 
 /*
 =================================================
@@ -410,7 +383,7 @@ void DebugInfo::AddSymbol (TIntermSymbol* node)
 	TSourceLoc::operator ==
 =================================================
 */
-inline bool operator == (const TSourceLoc &lhs, const TSourceLoc &rhs)
+ND_ inline bool operator == (const TSourceLoc &lhs, const TSourceLoc &rhs)
 {
 	if ( lhs.name != rhs.name )
 	{
@@ -425,12 +398,12 @@ inline bool operator == (const TSourceLoc &lhs, const TSourceLoc &rhs)
 			lhs.column	== rhs.column;
 }
 
-inline bool operator != (const TSourceLoc &lhs, const TSourceLoc &rhs)
+ND_ inline bool operator != (const TSourceLoc &lhs, const TSourceLoc &rhs)
 {
 	return not (lhs == rhs);
 }
 
-inline bool operator < (const TSourceLoc &lhs, const TSourceLoc &rhs)
+ND_ inline bool operator < (const TSourceLoc &lhs, const TSourceLoc &rhs)
 {
 	if ( lhs.name != rhs.name )
 	{
@@ -452,7 +425,7 @@ inline bool operator < (const TSourceLoc &lhs, const TSourceLoc &rhs)
 	IsBuiltinFunction
 =================================================
 */
-inline bool IsBuiltinFunction (TOperator op)
+ND_ inline bool IsBuiltinFunction (TOperator op)
 {
 #if 0 //def HIGH_DETAIL_TRACE
 	if ( op > TOperator::EOpPreDecrement and op < TOperator::EOpAdd )
@@ -468,7 +441,7 @@ inline bool IsBuiltinFunction (TOperator op)
 	IsDebugFunction
 =================================================
 */
-inline bool IsDebugFunction (TIntermOperator* node)
+ND_ inline bool IsDebugFunction (TIntermOperator* node)
 {
 	auto*	aggr = node->getAsAggregate();
 
@@ -530,7 +503,7 @@ inline size_t  DebugInfo::FieldInfoHash::operator () (const FieldInfo &value) co
 	GetVectorSwizzleMask
 =================================================
 */
-static uint  GetVectorSwizzleMask (TIntermBinary* binary)
+ND_ static uint  GetVectorSwizzleMask (TIntermBinary* binary)
 {
 	vector<uint>			sw_mask;
 	vector<TIntermBinary*>	swizzle_op;		swizzle_op.push_back( binary );
@@ -842,11 +815,11 @@ static bool RecursiveProcessAggregateNode (TIntermAggregate* node, DebugInfo &db
 static bool RecursiveProcessBranchNode (TIntermBranch* node, DebugInfo &dbgInfo);
 static bool RecursiveProcessSwitchNode (TIntermSwitch* node, DebugInfo &dbgInfo);
 static bool RecursiveProcessSelectionNode (TIntermSelection* node, DebugInfo &dbgInfo);
-static bool RecursiveProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo);
+static bool ProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo);
 static bool RecursiveProcessUnaryNode (TIntermUnary* node, DebugInfo &dbgInfo);
 static bool RecursiveProcessBinaryNode (TIntermBinary* node, DebugInfo &dbgInfo);
 static bool RecursiveProccessLoop (TIntermLoop* node, DebugInfo &dbgInfo);
-static TIntermAggregate*  CreateAppendToTrace (TIntermTyped* exprNode, uint sourceLoc, DebugInfo &dbgInfo);
+ND_ static TIntermAggregate*  CreateAppendToTrace (TIntermTyped* exprNode, uint sourceLoc, DebugInfo &dbgInfo);
 
 /*
 =================================================
@@ -913,7 +886,7 @@ static bool RecursiveProcessNode (TIntermNode* node, DebugInfo &dbgInfo)
 	if ( auto* symbol = node->getAsSymbolNode() )
 	{
 		dbgInfo.AddLocation( node->getLoc() );
-		CHECK_ERR( RecursiveProcessSymbolNode( symbol, dbgInfo ));
+		CHECK_ERR( ProcessSymbolNode( symbol, dbgInfo ));
 		return true;
 	}
 
@@ -1006,7 +979,7 @@ static void CreateRayTracingShaderDebugStorage (TTypeList* typeList, INOUT TPubl
 	CreateShaderDebugStorage
 =================================================
 */
-static void CreateShaderDebugStorage (uint setIndex, DebugInfo &dbgInfo, OUT uint64_t &posOffset, OUT uint64_t &dataOffset)
+static void CreateShaderDebugStorage (uint descSetIndex, DebugInfo &dbgInfo, OUT uint64_t &posOffset, OUT uint64_t &dataOffset)
 {
 	// "layout(binding=x, std430) buffer dbg_ShaderTraceStorage { ... } dbg_ShaderTrace"
 	
@@ -1017,7 +990,10 @@ static void CreateShaderDebugStorage (uint setIndex, DebugInfo &dbgInfo, OUT uin
 	uint_type.qualifier.layoutPacking	= TLayoutPacking::ElpStd430;
 	uint_type.qualifier.precision		= TPrecisionQualifier::EpqHigh;
 	uint_type.qualifier.layoutOffset	= 0;
+	
+#ifdef USE_STORAGE_QUALIFIERS
 	uint_type.qualifier.coherent		= true;
+#endif
 	
 	TTypeList*		type_list	= new TTypeList{};
 	TPublicType		temp		= uint_type;
@@ -1064,9 +1040,11 @@ static void CreateShaderDebugStorage (uint setIndex, DebugInfo &dbgInfo, OUT uin
 	uint_type.arraySizes			 = new TArraySizes{};
 	uint_type.arraySizes->addInnerSize();
 	
+#ifdef USE_STORAGE_QUALIFIERS
 	uint_type.qualifier.coherent	= false;
 	uint_type.qualifier.restrict	= true;
 	uint_type.qualifier.writeonly	= true;
+#endif
 
 	TType*			data_arr	= new TType{uint_type};		data_arr->setFieldName( "outData" );
 
@@ -1078,7 +1056,7 @@ static void CreateShaderDebugStorage (uint setIndex, DebugInfo &dbgInfo, OUT uin
 	block_qual.layoutMatrix		= TLayoutMatrix::ElmColumnMajor;
 	block_qual.layoutPacking	= TLayoutPacking::ElpStd430;
 	block_qual.layoutBinding	= 0;
-	block_qual.layoutSet		= setIndex;
+	block_qual.layoutSet		= descSetIndex;
 
 	TIntermSymbol*	storage_buf	= new TIntermSymbol{ 0x10000001, "dbg_ShaderTrace", TType{type_list, "dbg_ShaderTraceStorage", block_qual} };
 
@@ -1117,7 +1095,7 @@ static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 		{
 			auto*	fn = node->getAsAggregate();
 
-			if ( fn and fn->getOp() == TOperator::EOpFunction and fn->getName() == "main(" )
+			if ( fn and fn->getOp() == TOperator::EOpFunction and fn->getName() == dbgInfo.GetEntryPoint() )
 			{
 				loc = fn->getLoc();
 				break;
@@ -3158,7 +3136,7 @@ static bool CreateDebugTraceFunctions (TIntermNode* root, uint initialPosition, 
 		if ( not (aggr2 and aggr2->getOp() == TOperator::EOpFunction) )
 			continue;
 			
-		if ( aggr2->getName() == "main("	and
+		if ( aggr2->getName().c_str() == dbgInfo.GetEntryPoint()	and
 			 aggr2->getSequence().size() >= 2 )
 		{
 			auto*	body = aggr2->getSequence()[1]->getAsAggregate();
@@ -3773,10 +3751,10 @@ static bool RecursiveProccessLoop (TIntermLoop* loop, DebugInfo &dbgInfo)
 
 /*
 =================================================
-	RecursiveProcessSymbolNode
+	ProcessSymbolNode
 =================================================
 */
-static bool RecursiveProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
+static bool ProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 {
 	dbgInfo.AddSymbol( node );
 
@@ -3827,8 +3805,8 @@ static bool RecursiveProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 		 node->getName() == RT_LaunchSize				or
 		 // ray intersection & any-hit & closest-hit & miss shaders
 		 //		reuse 'gl_LaunchID'
-		 //		reuse 'gl_PrimitiveID'
 		 //		reuse 'gl_LaunchSize'
+		 //		reuse 'gl_PrimitiveID'
 		 node->getName() == RT_InstanceCustomIndex		or
 		 node->getName() == RT_WorldRayOrigin			or
 		 node->getName() == RT_WorldRayDirection		or
@@ -3851,5 +3829,43 @@ static bool RecursiveProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 	}
 
 	// do nothing
+	return true;
+}
+
+}	// namespace
+//-----------------------------------------------------------------------------
+
+
+/*
+=================================================
+	InsertTraceRecording
+=================================================
+*/
+bool ShaderTrace::InsertTraceRecording (TIntermediate &intermediate, uint descSetIndex)
+{
+	CHECK_ERR( intermediate.getNumEntryPoints() == 1 );
+
+	DebugInfo		dbg_info{ intermediate.getStage(), intermediate.getEntryPointMangledName(), OUT _exprLocations, _fileMap };
+
+	TIntermNode*	root = intermediate.getTreeRoot();
+	CHECK_ERR( root );
+
+	_initialPosition = uint(CombineHash( std::hash<void*>{}( this ), descSetIndex+1 ));
+	ASSERT( _initialPosition != 0 );
+	_initialPosition |= InitialPositionMask;
+
+	CreateShaderDebugStorage( descSetIndex, dbg_info, OUT _posOffset, OUT _dataOffset );
+
+	dbg_info.Enter( root );
+	{
+		CHECK_ERR( RecursiveProcessNode( root, dbg_info ));
+		CHECK( not dbg_info.GetInjection() );
+
+		CreateShaderBuiltinSymbols( root, dbg_info );
+
+		CHECK_ERR( CreateDebugTraceFunctions( root, _initialPosition, dbg_info ));
+	}
+	dbg_info.Leave( root );
+	dbg_info.PostProcess( OUT _varNames );
 	return true;
 }

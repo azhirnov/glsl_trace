@@ -65,7 +65,8 @@ public:
 	using Sources_t		= std::vector< SourceInfo >;
 	using FileMap_t		= std::unordered_map< std::string, uint32_t >;	// index in '_sources'
 
-	static constexpr int	TBasicType_Clock = 0xcc;	// 4x uint64
+	static constexpr int		TBasicType_Clock	= 0xcc;	// 4x uint64
+	static constexpr uint32_t	InitialPositionMask	= 0x80000000u;
 
 
 private:
@@ -88,8 +89,7 @@ public:
 
 	bool InsertTraceRecording (glslang::TIntermediate &, uint32_t descSetIndex);
 	bool InsertFunctionProfiler (glslang::TIntermediate &, uint32_t descSetIndex, bool shaderSubgroupClock, bool shaderDeviceClock);
-	//bool InsertDebugAsserts (glslang::TIntermediate &, uint32_t descSetIndex);
-	//bool InsertInstructionCounter (glslang::TIntermediate &, uint32_t descSetIndex);
+	bool InsertShaderClockMap (glslang::TIntermediate &, uint32_t descSetIndex);
 	
 	bool ParseShaderTrace (const void *ptr, uint64_t maxSize, std::vector<std::string> &result) const;
 

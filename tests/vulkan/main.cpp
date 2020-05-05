@@ -20,10 +20,11 @@ extern bool ShaderTrace_Test14 (Device& vulkan);
 
 extern bool ShaderPerf_Test1 (Device& vulkan);
 
+extern bool ClockMap_Test1 (Device& vulkan);
+
 
 int main ()
 {
-
 	Device	vulkan;
 	CHECK_ERR( vulkan.Create(), 1 );
 	
@@ -50,6 +51,7 @@ int main ()
 	if ( vulkan.hasShaderClock )
 	{
 		passed &= ShaderPerf_Test1( vulkan );
+		passed &= ClockMap_Test1( vulkan );
 	}
 # endif	// VK_KHR_shader_clock
 

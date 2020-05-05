@@ -15,6 +15,12 @@
 #include "StandAlone/ResourceLimits.cpp"
 using namespace glslang;
 
+// spirv cross
+#ifdef ENABLE_SPIRV_CROSS
+#	include "spirv_cross.hpp"
+#	include "spirv_glsl.hpp"
+#endif
+
 using std::unique_ptr;
 
 struct float3
@@ -773,7 +779,7 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 	shader.setEnvClient( EShClientVulkan, client_version );
 	shader.setEnvTarget( EshTargetSpv, spvVersion );
 
-	if ( not shader.parse( &builtin_res, 460, ECoreProfile, false, true, messages ) )
+	if ( not shader.parse( &builtin_res, 460, ECoreProfile, false, true, messages ))
 	{
 		std::cout << shader.getInfoLog() << std::endl;
 		return false;
@@ -793,6 +799,7 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 
 	if ( dbgInfo )
 	{
+		BEGIN_ENUM_CHECKS();
 		switch ( mode )
 		{
 			case ETraceMode::DebugTrace :
@@ -804,10 +811,17 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 														    shaderClockFeat.shaderSubgroupClock,
 														    shaderClockFeat.shaderDeviceClock ));
 				break;
+				
+			case ETraceMode::TimeMap :
+				CHECK_ERR( shaderClockFeat.shaderDeviceClock );
+				CHECK_ERR( dbgInfo->InsertShaderClockMap( INOUT *intermediate, dbgBufferSetIndex ));
+				break;
 
+			case ETraceMode::None :
 			default :
 				RETURN_ERR( "unknown shader trace mode" );
 		}
+		END_ENUM_CHECKS();
 	
 		dbgInfo->SetSource( source.data(), nullptr, source.size() );
 	}
@@ -824,6 +838,32 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 	GlslangToSpv( *intermediate, OUT spirvData, &logger, &spv_options );
 
 	CHECK_ERR( spirvData.size() );
+	
+	// for debugging
+	#if 0 //def ENABLE_SPIRV_CROSS
+	{
+		spirv_cross::CompilerGLSL			compiler {spirvData.data(), spirvData.size()};
+		spirv_cross::CompilerGLSL::Options	opt = {};
+
+		opt.version						= 460;
+		opt.es							= false;
+		opt.vulkan_semantics			= true;
+		opt.separate_shader_objects		= true;
+		opt.enable_420pack_extension	= true;
+
+		opt.vertex.fixup_clipspace		= false;
+		opt.vertex.flip_vert_y			= false;
+		opt.vertex.support_nonzero_base_instance = true;
+
+		opt.fragment.default_float_precision	= spirv_cross::CompilerGLSL::Options::Precision::Highp;
+		opt.fragment.default_int_precision		= spirv_cross::CompilerGLSL::Options::Precision::Highp;
+
+		compiler.set_common_options(opt);
+
+		std::string	glsl_src = compiler.compile();
+		std::cout << glsl_src << std::endl;
+	}
+	#endif
 	return true;
 }
 
@@ -1860,6 +1900,36 @@ bool  Device::TestPerformanceOutput (vector<VkShaderModule> modules, vector<stri
 				CHECK_ERR( pos != string::npos );
 			}
 		}
+	}
+
+	return true;
+}
+
+/*
+=================================================
+	CheckTimeMap
+=================================================
+*/
+bool Device::CheckTimeMap (vector<VkShaderModule> modules)
+{
+	CHECK_ERR( modules.size() );
+
+	for (auto& module : modules)
+	{
+		auto	iter = _debuggableShaders.find( module );
+		CHECK_ERR( iter != _debuggableShaders.end() );
+	}
+
+	uint const*			ptr		= static_cast<uint const *>( readBackPtr );
+	uint				width	= *(ptr + 2);
+	uint				height	= *(ptr + 3);
+	uint64_t const*		pixels	= static_cast<uint64_t const *>( readBackPtr ) + 2;
+
+	for (uint y = 0; y < height; ++y)
+	for (uint x = 0; x < width; ++x)
+	{
+		uint64_t	dt = *(pixels + (x + y * width));
+		CHECK_ERR( dt > 0 );
 	}
 
 	return true;

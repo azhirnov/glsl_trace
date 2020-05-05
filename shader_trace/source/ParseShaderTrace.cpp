@@ -260,7 +260,7 @@ inline string  ToString (bool value)
 inline string  ToString (float value)
 {
 	float	f		 = std::abs(value);
-	bool	exp		 = f != 0.0f and (f < 1.0e-4f or f > 1.0e+4f);
+	bool	exp		 = f != 0.0f and (f < 1.0e-4f or f > 1.0e+5f);
 	char	buf[128] = {};
 	int		len		 = std::snprintf( buf, sizeof(buf), (exp ? "%1.6e" : "%0.6f"), value );
 	return buf;
@@ -269,7 +269,7 @@ inline string  ToString (float value)
 inline string  ToString (double value)
 {
 	double	f		 = std::abs(value);
-	bool	exp		 = f != 0.0 and (f < 1.0e-4 or f > 1.0e+4);
+	bool	exp		 = f != 0.0 and (f < 1.0e-4 or f > 1.0e+5);
 	char	buf[128] = {};
 	int		len		 = std::snprintf( buf, sizeof(buf), (exp ? "%1.8e" : "%0.8f"), value );
 	return buf;
@@ -553,7 +553,7 @@ bool  ShaderTrace::ParseShaderTrace (const void *ptr, uint64_t maxSize, OUT vect
 	uint const*		end_ptr		= start_ptr + min( count, (maxSize - _dataOffset) / sizeof(uint) );
 	vector<Trace>	shaders;
 
-	ASSERT( (count / sizeof(uint)) <= maxSize );
+	ASSERT( (count * sizeof(uint)) <= maxSize );
 	
 	for (auto data_ptr = start_ptr; data_ptr < end_ptr;)
 	{

@@ -12,6 +12,7 @@ enum class ETraceMode
 	None,
 	DebugTrace,
 	Performance,
+	TimeMap,
 };
 
 
@@ -114,6 +115,8 @@ public:
 	bool TestDebugTraceOutput (vector<VkShaderModule> modules, string referenceFile);
 
 	bool TestPerformanceOutput (vector<VkShaderModule> modules, vector<string> fnNames);
+	
+	bool CheckTimeMap (vector<VkShaderModule> modules);
 
 	void  FreeTempHandles ();
 
