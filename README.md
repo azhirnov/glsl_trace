@@ -1,5 +1,3 @@
-[![Build Status](https://api.travis-ci.com/azhirnov/glsl_trace.svg?branch=master)](https://travis-ci.com/azhirnov/glsl_trace)
-
 # GLSL Trace
 
 ## Features
@@ -44,13 +42,17 @@
  * AST processing: log all function results, log all function calls, log some operator results.
  * Result parsing: write modified values, write unmodified values that are used, write line number and line from source code.
  
- **Profiling:**
+ **Pixel/invocation profiling:**
  * AST processing: insert time measurement into user-defined functions.
  * Result parsing: calculate average time and a fraction of the total shader execution time.
  
+ **Frame profiling:**
+ * AST processing: insert time measurement into entry function.
+ * Result: sum of shader invocation time per pixel or tile.
+ 
  **All:**
  * Shader trace recorded to the storage buffer as forward list using atomic operations.
- * Each `ShaderTrace` object has unique number to determine different shaders when parsing result.
+ * Each `ShaderTrace` object has unique number to determine different shaders when parsing results.
  * Allowed debugging on different shader stages in single draw/dispatch call.
  * Many invocations of same or different shaders can be recoreded into one storage buffer.
 
@@ -61,6 +63,41 @@
 <summary>Enable pixel/invocation debugging from code (OpenGL)</summary>
    
 ```cpp
+// use glslang to compile shader from source
+// for full source code see 'CreateShader()' in 'tests/OpenGL/ShaderCompiler.cpp'
+glslang::TProgram  program;
+...
+
+// after program compilation get AST
+TIntermediate*  intermediate = program.getIntermediate( ... );
+
+// insert trace recording into glslang AST
+ShaderTrace  shaderTrace;
+shaderTrace.InsertTraceRecording( *intermediate, /*unused*/0 );
+
+// Parts of shader source code will be inserted into shader trace results
+shaderTrace.SetSource( ... );
+
+// add included source files if used '#include' directive
+shaderTrace.IncludeSource( ... );
+
+// convert AST to SPIRV binary
+glslang::GlslangToSpv( *intermediate, spirvData, ... );
+
+// use SPIRV-Cross to convert SPIRV binary into GLSL code
+spirv_cross::CompilerGLSL  compiler {spirvData.data(), spirvData.size()};
+string  shaderSrc = compiler.compile();
+
+// create shaders and program
+...
+
+// create buffer for shader output
+uint32_t bufferSize = 4u << 20;
+glGenBuffers( 1, &dbgBuffer );
+glBindBuffer( GL_SHADER_STORAGE_BUFFER, dbgBuffer );
+glBufferStorage( GL_SHADER_STORAGE_BUFFER, bufferSize, nullptr, GL_MAP_READ_BIT | GL_DYNAMIC_STORAGE_BIT );
+
+// bind buffer to shader
 GLuint	sb_index = glGetProgramResourceIndex( program, GL_SHADER_STORAGE_BLOCK, "dbg_ShaderTraceStorage" );
 glShaderStorageBlockBinding( program, sb_index, /*binding*/0 );
 glBindBufferBase( GL_SHADER_STORAGE_BUFFER, /*binding*/0, dbgBuffer );
@@ -85,12 +122,55 @@ glBufferSubData( GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data );
 
 // dispatch or trace
 ...
+
+// read buffer data
+void* ptr = glMapBuffer( GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY );
+
+// get shader trace as a string
+vector<string>  result;
+shaderTrace.ParseShaderTrace( ptr, bufferSize, result );
 ```
 </details>
 <details>
 <summary>Enable pixel/invocation debugging from code (Vulkan)</summary>
    
 ```cpp
+// use glslang to compile shader from source
+// for full source code see 'Device::_Compile()' in 'tests/Vulkan/Device.cpp' 
+glslang::TProgram  program;
+...
+
+// after program compilation get AST
+TIntermediate*  intermediate = program.getIntermediate( ... );
+
+// insert trace recording into glslang AST
+// descSetIndex - any free descriptor set index
+ShaderTrace  shaderTrace;
+shaderTrace.InsertTraceRecording( *intermediate, descSetIndex );
+
+// Parts of shader source code will be inserted into shader trace results
+shaderTrace.SetSource( ... );
+
+// add included source files if used '#include' directive
+shaderTrace.IncludeSource( ... );
+
+// convert AST to SPIRV binary
+glslang::GlslangToSpv( *intermediate, spirvData, ... );
+	
+// create pipeline
+...
+
+// create buffer for shader output
+VkBufferCreateInfo	info = {};
+info.sType  = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+info.size   = 4u << 20;
+info.usage  = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+vkCreateBuffer( device, &info, nullptr, &debugOutputBuffer );
+
+info.usage  = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+vkCreateBuffer( device, &info, nullptr, &stagingBuffer );
+
+// bind descriptor set with 'debugOutputBuffer'
 vkCmdBindDescriptorSets( cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ppln_layout, descSetIndex, 1, &dbg_desc_set, 0, nullptr );
 	
 // set pixel which you need to debug (2 components)
@@ -111,6 +191,15 @@ vkCmdFillBuffer( cmdBuffer, debugOutputBuffer, sizeof(data), VK_WHOLE_SIZE, 0 );
 
 // dispatch or trace
 ...
+
+// copy buffer data to staging buffer and map
+...
+void* ptr;
+vkMapMemory( device, stagingBuffer, 0, info.size, 0, &ptr );
+
+// get shader trace as a string
+vector<string>  result;
+shaderTrace.ParseShaderTrace( ptr, info.size, result );
 ```
 </details>
 
@@ -125,9 +214,35 @@ void main ()
 {
     bool condition = ...
         
-    // if condition is true then trace recording will start here
+    // if 'condition' is true then trace recording will start here
     dbg_EnableTraceRecording( condition );
     ...
+}
+```
+
+Pause trace recording
+```cpp
+// empty functions will be replaced during shader compilation
+void dbg_EnableTraceRecording (bool b) {}
+void dbg_PauseTraceRecording (bool b) {}
+
+void main ()
+{
+    bool condition = ...
+    
+    // if 'condition' is true then trace recording will start here
+    dbg_EnableTraceRecording( condition );
+    ...
+	
+	// pause
+	dbg_PauseTraceRecording( true );
+	
+	// trace will not be recorded
+	...
+	
+	// resume
+	dbg_PauseTraceRecording( false );
+	...
 }
 ```
 </details>
@@ -162,12 +277,41 @@ The `//>` symbol marks the modified variable or function result.
 </details>
 
 
-## Profiling
+## Pixel profiling
 
 <details>
 <summary>Enable pixel/invocation profiling from code (OpenGL)</summary>
    
 ```cpp
+// use glslang to compile shader from source
+// for full source code see 'CreateShader()' in 'tests/OpenGL/ShaderCompiler.cpp'
+glslang::TProgram  program;
+...
+
+// after program compilation get AST
+TIntermediate*  intermediate = program.getIntermediate( ... );
+
+// insert profiling code into glslang AST
+ShaderTrace  shaderTrace;
+shaderTrace.InsertFunctionProfiler( *intermediate, /*unused*/0, true, true ); // TODO: check extensions
+
+// convert AST to SPIRV binary
+glslang::GlslangToSpv( *intermediate, spirvData, ... );
+
+// use SPIRV-Cross to convert SPIRV binary into GLSL code
+spirv_cross::CompilerGLSL  compiler {spirvData.data(), spirvData.size()};
+string  shaderSrc = compiler.compile();
+
+// create shaders and program
+...
+
+// create buffer for shader output
+uint32_t bufferSize = 4u << 20;
+glGenBuffers( 1, &dbgBuffer );
+glBindBuffer( GL_SHADER_STORAGE_BUFFER, dbgBuffer );
+glBufferStorage( GL_SHADER_STORAGE_BUFFER, bufferSize, nullptr, GL_MAP_READ_BIT | GL_DYNAMIC_STORAGE_BIT );
+
+// bind buffer to shader
 GLuint	sb_index = glGetProgramResourceIndex( program, GL_SHADER_STORAGE_BLOCK, "dbg_ShaderTraceStorage" );
 glShaderStorageBlockBinding( program, sb_index, /*binding*/0 );
 glBindBufferBase( GL_SHADER_STORAGE_BUFFER, /*binding*/0, dbgBuffer );
@@ -192,12 +336,53 @@ glBufferSubData( GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data );
 
 // dispatch or trace
 ...
+
+// read buffer data
+void* ptr = glMapBuffer( GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY );
+
+// get profiling info as a string
+vector<string>  result;
+shaderTrace.ParseShaderTrace( ptr, bufferSize, result );
 ```
 </details>
 <details>
 <summary>Enable pixel/invocation profiling from code (Vulkan)</summary>
    
 ```cpp
+// get shader clock extension features
+VkPhysicalDeviceShaderClockFeaturesKHR	shaderClockFeat;
+...
+
+// use glslang to compile shader from source
+// for full source code see 'Device::_Compile()' in 'tests/Vulkan/Device.cpp'  
+glslang::TProgram  program;
+...
+
+// after program compilation get AST
+TIntermediate*  intermediate = program.getIntermediate( ... );
+	
+// insert profiling code into glslang AST
+// descSetIndex - any free descriptor set index
+ShaderTrace  shaderTrace;
+shaderTrace.InsertFunctionProfiler( *intermediate, descSetIndex, shaderClockFeat.shaderSubgroupClock, shaderClockFeat.shaderDeviceClock );
+
+// convert AST to SPIRV binary
+glslang::GlslangToSpv( *intermediate, spirvData, ... );
+	
+// create pipeline
+...
+
+// create buffer for shader output
+VkBufferCreateInfo	info = {};
+info.sType  = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+info.size   = 4u << 20;
+info.usage  = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+vkCreateBuffer( device, &info, nullptr, &debugOutputBuffer );
+
+info.usage  = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+vkCreateBuffer( device, &info, nullptr, &stagingBuffer );
+
+// bind descriptor set with 'debugOutputBuffer'
 vkCmdBindDescriptorSets( cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ppln_layout, descSetIndex, 1, &dbg_desc_set, 0, nullptr );
 
 // set pixel which you need to debug (2 components)
@@ -218,6 +403,15 @@ vkCmdFillBuffer( cmdBuffer, debugOutputBuffer, sizeof(data), VK_WHOLE_SIZE, 0 );
 
 // dispatch or trace
 ...
+
+// copy buffer data to staging buffer and map
+...
+void* ptr;
+vkMapMemory( device, stagingBuffer, 0, info.size, 0, &ptr );
+
+// get profiling info as a string
+vector<string>  result;
+shaderTrace.ParseShaderTrace( ptr, info.size, result );
 ```
 </details>
 
@@ -270,3 +464,140 @@ no source
 ```
 </details>
 
+
+## Render pass profiling
+
+<details>
+<summary>Enable render pass profiling (OpenGL)</summary>
+   
+```cpp
+// use glslang to compile shader from source
+// for full source code see 'CreateShader()' in 'tests/OpenGL/ShaderCompiler.cpp'
+glslang::TProgram  program;
+...
+
+// after program compilation get AST
+TIntermediate*  intermediate = program.getIntermediate( ... );
+
+// insert profiling code into glslang AST
+ShaderTrace  shaderTrace;
+shaderTrace.InsertFunctionProfiler( *intermediate, /*unused*/0, true, true ); // TODO: check extensions
+
+// convert AST to SPIRV binary
+glslang::GlslangToSpv( *intermediate, spirvData, ... );
+
+// use SPIRV-Cross to convert SPIRV binary into GLSL code
+spirv_cross::CompilerGLSL  compiler {spirvData.data(), spirvData.size()};
+string  shaderSrc = compiler.compile();
+
+// create shaders and program
+...
+
+// create buffer for shader output
+// image_width, image_height - size of render target
+uint32_t bufferSize = 16 + (image_width * image_height * 8);
+glGenBuffers( 1, &dbgBuffer );
+glBindBuffer( GL_SHADER_STORAGE_BUFFER, dbgBuffer );
+glBufferStorage( GL_SHADER_STORAGE_BUFFER, bufferSize, nullptr, GL_MAP_READ_BIT | GL_DYNAMIC_STORAGE_BIT );
+
+// bind buffer to shader
+GLuint	sb_index = glGetProgramResourceIndex( program, GL_SHADER_STORAGE_BLOCK, "dbg_ShaderTraceStorage" );
+glShaderStorageBlockBinding( program, sb_index, /*binding*/0 );
+glBindBufferBase( GL_SHADER_STORAGE_BUFFER, /*binding*/0, dbgBuffer );
+
+// clear buffer
+uint32_t  zero = 0;
+glClearBufferData( GL_SHADER_STORAGE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero );
+
+// set tile size and image width
+uint32_t  data[] = { 1, 1, image_width }; 
+glBufferSubData( GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data );
+
+// set of draw or dispatch or trace
+...
+
+// read buffer data
+uint64_t* bufferData = static_cast<uint64_t*>( glMapBuffer( GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY )) + 2;
+
+for (uint32_t y = 0; y < image_height; ++y)
+for (uint32_t x = 0; x < image_width; ++x)
+{
+	uint64_t  pixel_time = bufferData[x + y * image_width];
+	
+	// process results
+	...
+}
+```
+</details>
+<details>
+<summary>Enable render pass profiling (Vulkan)</summary>
+   
+```cpp
+// check shader clock extension
+VkPhysicalDeviceShaderClockFeaturesKHR	shaderClockFeat;
+...
+if ( !shaderClockFeat.shaderDeviceClock )
+	return; // not supported
+
+// use glslang to compile shader from source
+// for full source code see 'Device::_Compile()' in 'tests/Vulkan/Device.cpp'  
+glslang::TProgram  program;
+...
+
+// after program compilation get AST
+TIntermediate*  intermediate = program.getIntermediate( ... );
+	
+// insert profiling code into glslang AST
+// descSetIndex - any free descriptor set index
+ShaderTrace  shaderTrace;
+shaderTrace.InsertShaderClockMap( *intermediate, descSetIndex );
+
+// convert AST to SPIRV binary
+glslang::GlslangToSpv( *intermediate, spirvData, ... );
+	
+// create pipeline
+...
+
+// create buffer for shader output
+// image_width, image_height - size of render target
+VkBufferCreateInfo	info = {};
+info.sType  = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+info.size   = 16 + (image_width * image_height * 8);
+info.usage  = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+vkCreateBuffer( device, &info, nullptr, &debugOutputBuffer );
+
+info.usage  = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+vkCreateBuffer( device, &info, nullptr, &stagingBuffer );
+
+// bind descriptor set with 'debugOutputBuffer'
+vkCmdBindDescriptorSets( cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ppln_layout, descSetIndex, 1, &dbg_desc_set, 0, nullptr );
+
+// set tileSize and image width
+uint32_t  data[] = { 1, 1, image_width };
+vkCmdUpdateBuffer( cmdBuffer, debugOutputBuffer, 0, sizeof(data), data );
+vkCmdFillBuffer( cmdBuffer, debugOutputBuffer, sizeof(data), VK_WHOLE_SIZE, 0 );
+
+// set of draw or dispatch or trace
+...
+
+// copy buffer data to staging buffer and map
+...
+void* ptr;
+vkMapMemory( device, stagingBuffer, 0, info.size, 0, &ptr );
+uint64_t* bufferData = static_cast<uint64_t*>( ptr ) + 2;
+
+for (uint32_t y = 0; y < image_height; ++y)
+for (uint32_t x = 0; x < image_width; ++x)
+{
+	uint64_t  pixel_time = bufferData[x + y * image_width];
+	
+	// process results
+	...
+}
+```
+</details>
+
+<details>
+<summary>Example of shader profiling output</summary>
+TODO: image
+</details>

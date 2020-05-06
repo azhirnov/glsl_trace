@@ -87,12 +87,21 @@ public:
 	ShaderTrace& operator = (ShaderTrace &&) = delete;
 	ShaderTrace& operator = (const ShaderTrace &) = delete;
 
+	// Log all function results, log all function calls, log some operator results.
+	// Use 'ParseShaderTrace' to get trace as string.
 	bool InsertTraceRecording (glslang::TIntermediate &, uint32_t descSetIndex);
+
+	// Insert time measurement into user-defined functions.
+	// Use 'ParseShaderTrace' to get trace as string.
 	bool InsertFunctionProfiler (glslang::TIntermediate &, uint32_t descSetIndex, bool shaderSubgroupClock, bool shaderDeviceClock);
+
+	// Insert time measurement into entry function, summarize shader invocation times in storage buffer.
 	bool InsertShaderClockMap (glslang::TIntermediate &, uint32_t descSetIndex);
 	
+	// Converts binary trace into string.
 	bool ParseShaderTrace (const void *ptr, uint64_t maxSize, std::vector<std::string> &result) const;
 
+	// Source code required for 'ParseShaderTrace' function.
 	void SetSource (const char* const* sources, const size_t *lengths, size_t count);
 	void SetSource (const char* source, size_t length);
 	void IncludeSource (const char* filename, const char* source, size_t length);	// if used '#include'
