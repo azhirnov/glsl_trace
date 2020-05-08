@@ -1910,7 +1910,7 @@ bool  Device::TestPerformanceOutput (vector<VkShaderModule> modules, vector<stri
 	CheckTimeMap
 =================================================
 */
-bool Device::CheckTimeMap (vector<VkShaderModule> modules)
+bool  Device::CheckTimeMap (vector<VkShaderModule> modules, float emptyPxFactor)
 {
 	CHECK_ERR( modules.size() );
 
@@ -1924,13 +1924,17 @@ bool Device::CheckTimeMap (vector<VkShaderModule> modules)
 	uint				width	= *(ptr + 2);
 	uint				height	= *(ptr + 3);
 	uint64_t const*		pixels	= static_cast<uint64_t const *>( readBackPtr ) + 2;
+	uint				count	= 0;
 
 	for (uint y = 0; y < height; ++y)
 	for (uint x = 0; x < width; ++x)
 	{
 		uint64_t	dt = *(pixels + (x + y * width));
-		CHECK_ERR( dt > 0 );
+		count += uint(dt > 0);
 	}
+
+	float	f = float(count) / float(width * height);
+	CHECK_ERR( f >= emptyPxFactor );
 
 	return true;
 }

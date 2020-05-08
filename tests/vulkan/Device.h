@@ -105,18 +105,18 @@ public:
 								 OUT VkBuffer &shaderBindingTable,
 								 OUT VkAccelerationStructureNV &topLevelAS, OUT VkAccelerationStructureNV &bottomLevelAS);
 	
-	bool Compile (OUT VkShaderModule&		shaderModule,
-				  vector<const char *>		source,
-				  EShLanguage				shaderType,
-				  ETraceMode				mode				= ETraceMode::None,
-				  uint						dbgBufferSetIndex	= ~0u,
-				  glslang::EShTargetLanguageVersion	spvVersion	= glslang::EShTargetSpv_1_3);
+	bool  Compile (OUT VkShaderModule&		shaderModule,
+				   vector<const char *>		source,
+				   EShLanguage				shaderType,
+				   ETraceMode				mode				= ETraceMode::None,
+				   uint						dbgBufferSetIndex	= ~0u,
+				   glslang::EShTargetLanguageVersion	spvVersion	= glslang::EShTargetSpv_1_3);
 	
-	bool TestDebugTraceOutput (vector<VkShaderModule> modules, string referenceFile);
+	bool  TestDebugTraceOutput (vector<VkShaderModule> modules, string referenceFile);
 
-	bool TestPerformanceOutput (vector<VkShaderModule> modules, vector<string> fnNames);
+	bool  TestPerformanceOutput (vector<VkShaderModule> modules, vector<string> fnNames);
 	
-	bool CheckTimeMap (vector<VkShaderModule> modules);
+	bool  CheckTimeMap (vector<VkShaderModule> modules, float emptyPxFactor = 1.0f);
 
 	void  FreeTempHandles ();
 
@@ -150,6 +150,23 @@ private:
 								void*										pUserData);
 };
 
+
+/*
+=================================================
+	BitCast
+=================================================
+*/
+	template <typename To, typename From>
+	ND_ inline constexpr To  BitCast (const From& src)
+	{
+		static_assert( sizeof(To) == sizeof(From), "must be same size!" );
+		static_assert( alignof(To) == alignof(From), "must be same align!" );
+		static_assert( std::is_trivially_copyable<From>::value and std::is_trivial<To>::value, "must be trivial types!" );
+
+		To	dst;
+		std::memcpy( OUT &dst, &src, sizeof(To) );
+		return dst;
+	}
 
 
 #define VK_CALL( ... ) \

@@ -153,8 +153,8 @@ extern bool ClockMap_Test1 (Device& vulkan)
 	
 	// setup storage buffer
 	{
-		const uint	data[] = { 1, 1,			// tile size
-							   width, height };	// width
+		const uint	data[] = { BitCast<uint>(1.0f), BitCast<uint>(1.0f),	// scale
+							   width, height };								// dimension
 
 		vulkan.vkCmdFillBuffer( vulkan.cmdBuffer, vulkan.debugOutputBuf, sizeof(data), VK_WHOLE_SIZE, 0 );
 		vulkan.vkCmdUpdateBuffer( vulkan.cmdBuffer, vulkan.debugOutputBuf, 0, sizeof(data), data );

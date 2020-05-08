@@ -509,8 +509,8 @@ glBindBufferBase( GL_SHADER_STORAGE_BUFFER, /*binding*/0, dbgBuffer );
 uint32_t  zero = 0;
 glClearBufferData( GL_SHADER_STORAGE_BUFFER, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &zero );
 
-// set tile size and image width
-uint32_t  data[] = { 1, 1, image_width }; 
+// set 'scale' and 'dimension'
+uint32_t  data[] = { std::bit_cast<uint32_t>(1.0f), std::bit_cast<uint32_t>(1.0f), image_width, image_height };
 glBufferSubData( GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data );
 
 // set of draw or dispatch or trace
@@ -572,8 +572,8 @@ vkCreateBuffer( device, &info, nullptr, &stagingBuffer );
 // bind descriptor set with 'debugOutputBuffer'
 vkCmdBindDescriptorSets( cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ppln_layout, descSetIndex, 1, &dbg_desc_set, 0, nullptr );
 
-// set tileSize and image width
-uint32_t  data[] = { 1, 1, image_width };
+// set 'scale' and 'dimension'
+uint32_t  data[] = { std::bit_cast<uint32_t>(1.0f), std::bit_cast<uint32_t>(1.0f), image_width, image_height };
 vkCmdUpdateBuffer( cmdBuffer, debugOutputBuffer, 0, sizeof(data), data );
 vkCmdFillBuffer( cmdBuffer, debugOutputBuffer, sizeof(data), VK_WHOLE_SIZE, 0 );
 
@@ -599,5 +599,5 @@ for (uint32_t x = 0; x < image_width; ++x)
 
 <details>
 <summary>Example of shader profiling output</summary>
-TODO: image
+![image](ShaderClockMap.jpg)
 </details>

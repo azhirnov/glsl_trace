@@ -21,6 +21,7 @@ extern bool ShaderTrace_Test14 (Device& vulkan);
 extern bool ShaderPerf_Test1 (Device& vulkan);
 
 extern bool ClockMap_Test1 (Device& vulkan);
+extern bool ClockMap_Test2 (Device& vulkan);
 
 
 int main ()
@@ -52,6 +53,7 @@ int main ()
 	{
 		passed &= ShaderPerf_Test1( vulkan );
 		passed &= ClockMap_Test1( vulkan );
+		passed &= ClockMap_Test2( vulkan );
 	}
 # endif	// VK_KHR_shader_clock
 
