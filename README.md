@@ -599,5 +599,7 @@ for (uint32_t x = 0; x < image_width; ++x)
 
 <details>
 <summary>Example of shader profiling output</summary>
+	
 ![image](ShaderClockMap.jpg)
+
 </details>
