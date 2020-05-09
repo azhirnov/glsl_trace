@@ -3266,7 +3266,7 @@ static TIntermAggregate*  CreateAppendToTrace (TIntermTyped* exprNode, uint sour
 	END_ENUM_CHECKS();
 	
 	if ( type.isArray() )
-		return false;	//RETURN_ERR( "arrays is not supported yet" )
+		return nullptr;	//RETURN_ERR( "arrays is not supported yet" )
 	else
 	if ( type.isMatrix() )
 		type_name = "m" + type_name + to_string(type.getMatrixCols()) + to_string(type.getMatrixRows());
