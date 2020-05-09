@@ -2306,12 +2306,8 @@ static TIntermAggregate*  CreateAddTimeToTraceBody (const TString &fnName, Debug
 		assign_data2->setRight( type_id );
 		branch_body->getSequence().push_back( assign_data2 );
 		
-		const auto	WriteUVec4 = [&branch_body, &indexed_access, &uint_type] (TIntermTyped* vec)
+		const auto	WriteUVec4 = [&branch_body, &indexed_access, &uint_type, &index_type] (TIntermTyped* vec)
 		{
-			TPublicType		index_type;	index_type.init({});
-			index_type.basicType		= TBasicType::EbtInt;
-			index_type.qualifier.storage= TStorageQualifier::EvqConst;
-
 			for (int i = 0; i < vec->getType().getVectorSize(); ++i)
 			{
 				TIntermBinary*			assign_data		= new TIntermBinary{ TOperator::EOpAssign };

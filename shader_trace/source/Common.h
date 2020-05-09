@@ -21,7 +21,6 @@ using uint = uint32_t;
 #define USE_NV_RAY_TRACING
 #define USE_STORAGE_QUALIFIERS
 
-//#undef NDEBUG
 #include <assert.h>
 
 #ifndef OUT
@@ -32,33 +31,50 @@ using uint = uint32_t;
 #	define INOUT
 #endif
 
-#if defined(_MSC_VER) && !defined(and)
+#ifdef _MSC_VER
+# if !defined(and)
 #	define not					!
 #	define and					&&
 #	define or					||
+# endif
 #endif
 
 #ifndef CHECK_ERR
+# if _DEBUG
+#	define ASSERT( _expr_ )				{ assert(_expr_); }
+# else
+#	define ASSERT( _expr_ )				{}
+# endif
 #	define __GETARG_0( _0_, ... )		_0_
 #	define __GETARG_1( _0_, _1_, ... )	_1_
-#	define __CHECK_ERR( _expr_, _ret_ )	{if (not (_expr_)) { assert(!(#_expr_)); return _ret_; } }
+#	define __CHECK_ERR( _expr_, _ret_ )	{if (not (_expr_)) { ASSERT(!(#_expr_)); return _ret_; } }
 #	define CHECK_ERR( ... )				__CHECK_ERR( __GETARG_0( __VA_ARGS__ ), __GETARG_1( __VA_ARGS__, 0 ))
-#	define RETURN_ERR( _msg_ )			{ assert(!(#_msg_)); return 0; }
-#	define CHECK( _expr_ )				{ assert(_expr_); }
-#	define ASSERT( _expr_ )				{ assert(_expr_); }
+#	define RETURN_ERR( _msg_ )			{ ASSERT(!(#_msg_)); return 0; }
+#	define CHECK( _expr_ )				{ ASSERT(_expr_); }
 #endif
 
 #ifndef ND_
-#	if (defined(_MSC_VER) && (_MSC_VER >= 1917)) //|| (defined(__clang__) && __has_feature( cxx_attributes )) || (defined(__gcc__) && __has_cpp_attribute( nodiscard ))
+# if defined(_MSC_VER)
+#	if _MSC_VER >= 1917
 #		define ND_		[[nodiscard]]
-#	else
-#		define ND_
 #	endif
+# elif defined(__clang__)
+#	if __has_feature( cxx_attributes )
+#		define ND_		[[nodiscard]]
+#	endif
+# elif defined(__gcc__)
+#	if __has_cpp_attribute( nodiscard )
+#		define ND_		[[nodiscard]]
+#	endif
+# endif
+# ifndef ND_
+#	define ND_
+# endif
 #endif
 
 #ifdef _MSC_VER
 #	define FUNCTION_NAME			__FUNCTION__
-#elif defined(__clang__) or defined(__gcc__)
+#elif defined(__clang__) || defined(__gcc__)
 #	define FUNCTION_NAME			__func__
 #else
 #	define FUNCTION_NAME			"unknown function"
