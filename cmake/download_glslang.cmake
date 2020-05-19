@@ -3,10 +3,6 @@
 if (TRUE)
 	set( EXTERNAL_GLSLANG_PATH "" CACHE PATH "path to glslang source" )
 	mark_as_advanced( EXTERNAL_GLSLANG_PATH )
-
-	# SPIRV-Tools require Python 3 for building
-	find_package( PythonInterp 3.7 REQUIRED )
-	find_package( PythonLibs 3.7 REQUIRED )
 	
 	# reset to default
 	if (NOT EXISTS "${EXTERNAL_GLSLANG_PATH}/CMakeLists.txt")
@@ -14,6 +10,14 @@ if (TRUE)
 		set( EXTERNAL_GLSLANG_PATH "${EXTERNALS_PATH}/glslang" CACHE PATH "" FORCE )
 	else ()
 		message( STATUS "glslang found in \"${EXTERNAL_GLSLANG_PATH}\"" )
+	endif ()
+	
+	if (FALSE)
+		find_package( Vulkan )
+		if (Vulkan_FOUND)
+			message( STATUS "used glslang from VulkanSDK" )
+			set( EXTERNAL_GLSLANG_PATH "${Vulkan_INCLUDE_DIR}/../glslang" CACHE PATH "" FORCE )
+		endif ()
 	endif ()
 
 	if (NOT EXISTS "${EXTERNAL_GLSLANG_PATH}/CMakeLists.txt")
@@ -34,9 +38,15 @@ if (TRUE)
 		set( SPIRVHEADERS_REPOSITORY "" )
 	endif ()
 	
-	set( ENABLE_HLSL OFF CACHE BOOL "glslang option" FORCE )
-	set( ENABLE_OPT OFF CACHE BOOL "glslang option" FORCE )
+	set( ENABLE_HLSL OFF CACHE BOOL "glslang option" )
+	set( ENABLE_OPT OFF CACHE BOOL "glslang option" )
 	mark_as_advanced( ENABLE_HLSL ENABLE_OPT )
+
+	# SPIRV-Tools require Python 3 for building
+	if (${ENABLE_OPT})
+		find_package( PythonInterp 3.7 REQUIRED )
+		find_package( PythonLibs 3.7 REQUIRED )
+	endif ()
 
 	if (${EXTERNALS_USE_STABLE_VERSIONS})
 		# stable release January 22, 2020
@@ -48,6 +58,8 @@ if (TRUE)
 		set( SPIRV_TOOLS_TAG "master" )
 		set( SPIRV_HEADERS_TAG "master" )
 	endif ()
+
+	set( GLSLANG_DEPS "External.glslang" )
 
 	ExternalProject_Add( "External.glslang"
 		LOG_OUTPUT_ON_FAILURE 1
@@ -69,57 +81,62 @@ if (TRUE)
 		TEST_COMMAND		""
 	)
 	
-	ExternalProject_Add( "External.SPIRV-Tools"
-		LOG_OUTPUT_ON_FAILURE 1
-		DEPENDS				"External.glslang"
-		# download
-		GIT_REPOSITORY		${SPIRVTOOLS_REPOSITORY}
-		GIT_TAG				${SPIRV_TOOLS_TAG}
-		GIT_PROGRESS		1
-		# update
-		PATCH_COMMAND		""
-		UPDATE_DISCONNECTED	1
-		LOG_UPDATE			1
-		# configure
-		SOURCE_DIR			"${EXTERNAL_GLSLANG_PATH}/External/SPIRV-Tools"
-		CONFIGURE_COMMAND	""
-		# build
-		BINARY_DIR			""
-		BUILD_COMMAND		""
-		INSTALL_COMMAND		""
-		TEST_COMMAND		""
-	)
+	if (${ENABLE_OPT})
+		ExternalProject_Add( "External.SPIRV-Tools"
+			LOG_OUTPUT_ON_FAILURE 1
+			DEPENDS				"External.glslang"
+			# download
+			GIT_REPOSITORY		${SPIRVTOOLS_REPOSITORY}
+			GIT_TAG				${SPIRV_TOOLS_TAG}
+			GIT_PROGRESS		1
+			# update
+			PATCH_COMMAND		""
+			UPDATE_DISCONNECTED	1
+			LOG_UPDATE			1
+			# configure
+			SOURCE_DIR			"${EXTERNAL_GLSLANG_PATH}/External/SPIRV-Tools"
+			CONFIGURE_COMMAND	""
+			# build
+			BINARY_DIR			""
+			BUILD_COMMAND		""
+			INSTALL_COMMAND		""
+			TEST_COMMAND		""
+		)
 	
-	ExternalProject_Add( "External.SPIRV-Headers"
-		LOG_OUTPUT_ON_FAILURE 1
-		DEPENDS				"External.glslang"
-							"External.SPIRV-Tools"
-		# download
-		GIT_REPOSITORY		${SPIRVHEADERS_REPOSITORY}
-		GIT_TAG				${SPIRV_HEADERS_TAG}
-		GIT_PROGRESS		1
-		# update
-		PATCH_COMMAND		""
-		UPDATE_DISCONNECTED	1
-		LOG_UPDATE			1
-		# configure
-		SOURCE_DIR			"${EXTERNAL_GLSLANG_PATH}/External/SPIRV-Tools/external/SPIRV-Headers"
-		CONFIGURE_COMMAND	""
-		# build
-		BINARY_DIR			""
-		BUILD_COMMAND		""
-		INSTALL_COMMAND		""
-		TEST_COMMAND		""
-	)
+		ExternalProject_Add( "External.SPIRV-Headers"
+			LOG_OUTPUT_ON_FAILURE 1
+			DEPENDS				"External.glslang"
+								"External.SPIRV-Tools"
+			# download
+			GIT_REPOSITORY		${SPIRVHEADERS_REPOSITORY}
+			GIT_TAG				${SPIRV_HEADERS_TAG}
+			GIT_PROGRESS		1
+			# update
+			PATCH_COMMAND		""
+			UPDATE_DISCONNECTED	1
+			LOG_UPDATE			1
+			# configure
+			SOURCE_DIR			"${EXTERNAL_GLSLANG_PATH}/External/SPIRV-Tools/external/SPIRV-Headers"
+			CONFIGURE_COMMAND	""
+			# build
+			BINARY_DIR			""
+			BUILD_COMMAND		""
+			INSTALL_COMMAND		""
+			TEST_COMMAND		""
+		)
+
+		set( GLSLANG_DEPS "${GLSLANG_DEPS}" "External.SPIRV-Tools" "External.SPIRV-Headers" )
+		set_property( TARGET "External.SPIRV-Headers" PROPERTY FOLDER "External" )
+		set_property( TARGET "External.SPIRV-Tools" PROPERTY FOLDER "External" )
+	endif ()
 	
 	set( GLSLANG_INSTALL_DIR "${EXTERNALS_INSTALL_PATH}/glslang" )
 
 	ExternalProject_Add( "External.glslang-main"
 		LIST_SEPARATOR		"${LIST_SEPARATOR}"
 		LOG_OUTPUT_ON_FAILURE 1
-		DEPENDS				"External.glslang"
-							"External.SPIRV-Tools"
-							"External.SPIRV-Headers"
+		DEPENDS				${GLSLANG_DEPS}
+		DOWNLOAD_COMMAND	""
 		# configure
 		SOURCE_DIR			"${EXTERNAL_GLSLANG_PATH}"
 		CMAKE_GENERATOR		"${CMAKE_GENERATOR}"
@@ -151,7 +168,7 @@ if (TRUE)
 		INSTALL_COMMAND		${CMAKE_COMMAND}
 							--build .
 							--config $<CONFIG>
-							--target
+							--target glslang
 							install
 							COMMAND ${CMAKE_COMMAND} -E copy_if_different
 								"${EXTERNAL_GLSLANG_PATH}/StandAlone/ResourceLimits.h"
@@ -164,8 +181,6 @@ if (TRUE)
 		TEST_COMMAND		""
 	)
 
-	set_property( TARGET "External.SPIRV-Headers" PROPERTY FOLDER "External" )
-	set_property( TARGET "External.SPIRV-Tools" PROPERTY FOLDER "External" )
 	set_property( TARGET "External.glslang" PROPERTY FOLDER "External" )
 	set_property( TARGET "External.glslang-main" PROPERTY FOLDER "External" )
 

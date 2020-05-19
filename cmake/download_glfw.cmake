@@ -51,7 +51,7 @@ if (TRUE)
 		BUILD_COMMAND		${CMAKE_COMMAND}
 							--build .
 							--config $<CONFIG>
-							--target ALL_BUILD
+							--target glfw
 		LOG_BUILD 			1
 		# install
 		INSTALL_DIR 		"${GLFW_INSTALL_DIR}"
