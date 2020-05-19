@@ -3,6 +3,7 @@
 #include "Device.h"
 #include <iostream>
 #include <functional>
+#include <memory>
 
 // glslang includes
 #include "glslang/Include/revision.h"
@@ -71,6 +72,11 @@ void  Device::Destroy ()
 {
 	_DestroyResources();
 	_DestroyDevice();
+
+	for (auto&[module, trace] : _debuggableShaders) {
+		delete trace;
+	}
+	_debuggableShaders.clear();
 
 	glslang::FinalizeProcess();
 }

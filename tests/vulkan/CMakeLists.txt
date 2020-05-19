@@ -6,10 +6,9 @@ source_group( TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES} )
 
 set_property( TARGET "Tests.Vulkan" PROPERTY FOLDER "" )
 target_link_libraries( "Tests.Vulkan" PUBLIC "ShaderTrace" )
-target_link_libraries( "Tests.Vulkan" PUBLIC "GLFW-lib" )
 target_link_libraries( "Tests.Vulkan" PUBLIC "Vulkan-lib" )
 
-if (TRUE)
+if (FALSE)
 	target_link_libraries( "Tests.Vulkan" PUBLIC "SPIRV-Cross-lib" )
 	target_compile_definitions( "Tests.Vulkan" PUBLIC ENABLE_SPIRV_CROSS )
 endif ()

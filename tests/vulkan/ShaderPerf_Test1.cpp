@@ -2,8 +2,6 @@
 
 #include "Device.h"
 
-using namespace std::string_view_literals;
-
 /*
 =================================================
 	CompileShaders
