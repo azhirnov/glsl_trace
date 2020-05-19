@@ -22,6 +22,10 @@ using namespace glslang;
 #	include "spirv_glsl.hpp"
 #endif
 
+#ifdef __linux__
+#   define fopen_s( _outFile_, _name_, _mode_ ) (*(_outFile_) = fopen( (_name_), (_mode_) ))
+#endif
+
 using std::unique_ptr;
 
 struct float3

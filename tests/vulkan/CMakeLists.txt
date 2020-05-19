@@ -16,6 +16,10 @@ endif ()
 target_compile_definitions( "Tests.Vulkan" PUBLIC "DATA_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/../ref/\"" )
 target_compile_definitions( "Tests.Vulkan" PUBLIC VK_NO_PROTOTYPES )
 
+if (UNIX)
+	target_link_libraries( "Tests.Vulkan" PUBLIC "dl;pthread" )
+endif ()
+
 if (NOT CI_BUILD)
 	add_test( NAME "Tests.Vulkan" COMMAND "Tests.Vulkan" )
 endif ()

@@ -109,14 +109,14 @@ bool VulkanLoader::Initialize (string libName)
 		char	buf[PATH_MAX] = "";
 		CHECK( dlinfo( lib->module, RTLD_DI_ORIGIN, buf ) == 0 );
 			
-		std::cout << "Vulkan library path: \""s << buf << '"' << std::endl;
+		std::cout << "Vulkan library path: \"" << buf << '"' << std::endl;
 	}
 #	endif
 
 	const auto	Load =	[module = lib->module] (OUT auto& outResult, const char *procName, auto dummy)
 						{
 							using FN = decltype(dummy);
-							FN	result = BitCast<FN>( ::dlsym( module, procName ));
+							FN	result = reinterpret_cast<FN>( ::dlsym( module, procName ));
 							outResult = result ? result : dummy;
 						};
 #endif
