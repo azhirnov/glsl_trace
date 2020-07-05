@@ -894,7 +894,7 @@ static bool  RecursiveProcessNode (TIntermNode* node, DebugInfo &dbgInfo)
 		bool	is_func = (aggr->getOp() == TOperator::EOpFunction);
 
 		if ( is_func )
-			CHECK_ERR( ProcessFunctionDefinition( aggr, dbgInfo ));
+			is_func = ProcessFunctionDefinition( aggr, dbgInfo );
 
 		for (auto& n : aggr->getSequence())
 		{
@@ -4031,11 +4031,15 @@ static TIntermBinary*  AssignClock (TIntermSymbol* dst, const TSourceLoc &loc, D
 /*
 =================================================
 	ProcessFunctionDefinition
+----
+	begin function profiling
 =================================================
 */
 static bool  ProcessFunctionDefinition (TIntermAggregate* node, DebugInfo &dbgInfo)
 {
-	CHECK_ERR( node->getSequence().size() >= 2 );
+	if ( node->getSequence().size() < 2 )
+		return false;	// empty function
+
 	CHECK_ERR( node->getSequence()[0]->getAsOperator()->getOp() == TOperator::EOpParameters );
 	CHECK_ERR( node->getSequence()[1]->getAsOperator()->getOp() == TOperator::EOpSequence );
 
@@ -4055,6 +4059,8 @@ static bool  ProcessFunctionDefinition (TIntermAggregate* node, DebugInfo &dbgIn
 /*
 =================================================
 	ProcessFunctionDefinition2
+----
+	end function profiling
 =================================================
 */
 static bool  ProcessFunctionDefinition2 (TIntermAggregate* node, DebugInfo &dbgInfo)
