@@ -245,11 +245,11 @@ static bool  RecursiveProcessNode (TIntermNode* node, DebugInfo &dbgInfo)
 static bool  ProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 {
 	if ( // fragment shader
-		 node->getName() == "gl_FragCoord"		or
+		 node->getName() == "gl_FragCoord"			or
 		 // compute shader
-		 node->getName() == "gl_WorkGroupID"	or
+		 node->getName() == "gl_GlobalInvocationID"	or
 		 // ray tracing shaders
-		 node->getName() == RT_LaunchID			)
+		 node->getName() == RT_LaunchID				)
 	{
 		dbgInfo.CacheSymbolNode( node, false );
 		return true;
@@ -358,15 +358,15 @@ static void  CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 		dbgInfo.CacheSymbolNode( symb, true );
 	}
 
-	if ( is_compute and not dbgInfo.GetCachedSymbolNode( "gl_WorkGroupID" ))
+	if ( is_compute and not dbgInfo.GetCachedSymbolNode( "gl_GlobalInvocationID" ))
 	{
 		TPublicType		uint_type;	uint_type.init({});
 		uint_type.basicType			= TBasicType::EbtUint;
 		uint_type.vectorSize		= 3;
 		uint_type.qualifier.storage	= TStorageQualifier::EvqVaryingIn;
-		uint_type.qualifier.builtIn	= TBuiltInVariable::EbvWorkGroupId;
+		uint_type.qualifier.builtIn	= TBuiltInVariable::EbvGlobalInvocationId;
 
-		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "gl_WorkGroupID", TType{uint_type} };
+		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "gl_GlobalInvocationID", TType{uint_type} };
 		symb->setLoc( loc );
 		dbgInfo.CacheSymbolNode( symb, true );
 	}
@@ -495,13 +495,13 @@ ND_ static TIntermBinary*  GetComputeCoord (TIntermSymbol* coord, DebugInfo &dbg
 	type.qualifier.precision	= TPrecisionQualifier::EpqHigh;
 	type.qualifier.storage		= TStorageQualifier::EvqTemporary;
 
-	// "... vec2(gl_WorkGroupID) ..."
-	TIntermSymbol*		workgroup	= dbgInfo.GetCachedSymbolNode( "gl_WorkGroupID" );
+	// "... vec2(gl_GlobalInvocationID) ..."
+	TIntermSymbol*		workgroup	= dbgInfo.GetCachedSymbolNode( "gl_GlobalInvocationID" );
 	TIntermUnary*		to_vec2		= new TIntermUnary{ TOperator::EOpConvUintToFloat };
 	to_vec2->setType( TType{type} );
 	to_vec2->setOperand( workgroup );
 				
-	// "... vec2(gl_WorkGroupID) * dbg_ShaderTrace.scale ..."
+	// "... vec2(gl_GlobalInvocationID) * dbg_ShaderTrace.scale ..."
 	TIntermBinary*		work_mul_scale	= new TIntermBinary{ TOperator::EOpMul };
 	TIntermBinary*		scale			= dbgInfo.GetDebugStorageField( "scale" );
 	CHECK_ERR( scale );
@@ -509,7 +509,7 @@ ND_ static TIntermBinary*  GetComputeCoord (TIntermSymbol* coord, DebugInfo &dbg
 	work_mul_scale->setLeft( to_vec2 );
 	work_mul_scale->setRight( scale );
 	
-	// "... ivec2(vec2(gl_WorkGroupID) * dbg_ShaderTrace.scale) ..."
+	// "... ivec2(vec2(gl_GlobalInvocationID) * dbg_ShaderTrace.scale) ..."
 	TIntermUnary*		to_ivec2	= new TIntermUnary{ TOperator::EOpConvFloatToInt };
 	type.basicType		= TBasicType::EbtInt;
 	to_ivec2->setType( TType{type} );
@@ -545,7 +545,7 @@ ND_ static TIntermBinary*  GetComputeCoord (TIntermSymbol* coord, DebugInfo &dbg
 	dim_sub_one->setLeft( dimension );
 	dim_sub_one->setRight( one_ivec );
 
-	// "... clamp( ivec2(vec2(gl_WorkGroupID) * dbg_ShaderTrace.scale), ivec2(0), dimension - ivec2(1) ) ..."
+	// "... clamp( ivec2(vec2(gl_GlobalInvocationID) * dbg_ShaderTrace.scale), ivec2(0), dimension - ivec2(1) ) ..."
 	TIntermAggregate*		clamp_op	= new TIntermAggregate{ TOperator::EOpClamp };
 	type.vectorSize			= 2;
 	type.qualifier.storage	= TStorageQualifier::EvqGlobal;
@@ -558,7 +558,7 @@ ND_ static TIntermBinary*  GetComputeCoord (TIntermSymbol* coord, DebugInfo &dbg
 	clamp_op->getSequence().push_back( zero_ivec );
 	clamp_op->getSequence().push_back( dim_sub_one );
 	
-	// "ivec2  dbg_Coord = clamp( ivec2(vec2(gl_WorkGroupID) * dbg_ShaderTrace.scale), ivec2(0), dimension - ivec2(1) )"
+	// "ivec2  dbg_Coord = clamp( ivec2(vec2(gl_GlobalInvocationID) * dbg_ShaderTrace.scale), ivec2(0), dimension - ivec2(1) )"
 	TIntermBinary*		assign_coord	= new TIntermBinary{ TOperator::EOpAssign };
 	type.qualifier.storage = TStorageQualifier::EvqTemporary;
 	assign_coord->setType( TType{type} );
