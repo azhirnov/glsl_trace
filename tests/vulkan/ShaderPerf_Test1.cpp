@@ -236,6 +236,6 @@ extern bool ShaderPerf_Test1 (Device& vulkan)
 	
 	vulkan.FreeTempHandles();
 
-	std::cout << "ShaderPerf_Test1 - passed" << std::endl;
+	TEST_PASSED();
 	return true;
 }

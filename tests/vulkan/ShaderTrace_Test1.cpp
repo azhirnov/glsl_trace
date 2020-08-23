@@ -229,7 +229,7 @@ extern bool ShaderTrace_Test1 (Device& vulkan)
 	CHECK_ERR( vulkan.TestDebugTraceOutput( {frag_shader}, "ShaderTrace_Test1.txt" ));
 	
 	vulkan.FreeTempHandles();
-
-	std::cout << "ShaderTrace_Test1 - passed" << std::endl;
+	
+	TEST_PASSED();
 	return true;
 }

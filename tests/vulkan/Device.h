@@ -184,3 +184,16 @@ private:
 
 #define VK_CHECK( ... ) \
 	__PRIVATE_VK_CALL_R( __GETARG_0( __VA_ARGS__ ), __GETARG_1( __VA_ARGS__, 0 ))
+	
+// function name
+#ifdef _MSC_VER
+#	define FUNCTION_NAME			__FUNCTION__
+
+#elif defined(__clang__) || defined(__gcc__)
+#	define FUNCTION_NAME			__func__
+
+#else
+#	define FUNCTION_NAME			"unknown function"
+#endif
+
+#define TEST_PASSED()	std::cout << FUNCTION_NAME << " - passed" << std::endl;

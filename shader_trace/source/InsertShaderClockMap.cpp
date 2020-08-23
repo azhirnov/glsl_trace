@@ -30,12 +30,15 @@ namespace
 
 		const string			_entryName;
 		const EShLanguage		_shLang;
+		
+		const bool				_hasNVRayTracingExt			= false;	// switch between VN and KHR extensions
 
 
 	public:
-		DebugInfo (EShLanguage shLang, const string &entry) :
-			_entryName{ entry },
-			_shLang{ shLang }
+		explicit DebugInfo (const TIntermediate &intermediate) :
+			_entryName{ intermediate.getEntryPointMangledName() },
+			_shLang{ intermediate.getStage() },
+			_hasNVRayTracingExt{ intermediate.getRequestedExtensions().find("GL_NV_ray_tracing") != intermediate.getRequestedExtensions().end() }
 		{}
 
 		ND_ string const&	GetEntryPoint ()			const	{ return _entryName; }
@@ -59,7 +62,8 @@ namespace
 			bool			SetDebugStorage (TIntermSymbol* symb);
 		ND_ TIntermBinary*  GetDebugStorageField (const char* name)	const;
 		
-		ND_ EShLanguage		GetShaderType ()	const						{ return _shLang; }
+		ND_ EShLanguage		GetShaderType ()						const	{ return _shLang; }
+		ND_ uint			IsNVRT ()								const	{ return uint(_hasNVRayTracingExt); }
 	};
 
 /*
@@ -249,7 +253,7 @@ static bool  ProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 		 // compute shader
 		 node->getName() == "gl_GlobalInvocationID"	or
 		 // ray tracing shaders
-		 node->getName() == RT_LaunchID				)
+		 node->getName() == RT_LaunchID[dbgInfo.IsNVRT()] )
 	{
 		dbgInfo.CacheSymbolNode( node, false );
 		return true;
@@ -371,15 +375,15 @@ static void  CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 		dbgInfo.CacheSymbolNode( symb, true );
 	}
 
-	if ( need_launch_id and not dbgInfo.GetCachedSymbolNode( RT_LaunchID ))
+	if ( need_launch_id and not dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] ))
 	{
 		TPublicType		uint_type;	uint_type.init({});
 		uint_type.basicType			= TBasicType::EbtUint;
 		uint_type.vectorSize		= 3;
 		uint_type.qualifier.storage	= TStorageQualifier::EvqVaryingIn;
-		uint_type.qualifier.builtIn	= RT_EbvLaunchId;
+		uint_type.qualifier.builtIn	= TBuiltInVariable::EbvLaunchId;
 
-		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), RT_LaunchID, TType{uint_type} };
+		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), RT_LaunchID[dbgInfo.IsNVRT()], TType{uint_type} };
 		symb->setLoc( loc );
 		dbgInfo.CacheSymbolNode( symb, true );
 	}
@@ -582,7 +586,7 @@ ND_ static TIntermBinary*  GetRayTracingCoord (TIntermSymbol* coord, DebugInfo &
 	type.qualifier.storage		= TStorageQualifier::EvqTemporary;
 
 	// "... vec2(gl_LaunchID) ..."
-	TIntermSymbol*		launch_id	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
+	TIntermSymbol*		launch_id	= dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] );
 	TIntermUnary*		to_vec2		= new TIntermUnary{ TOperator::EOpConvUintToFloat };
 	to_vec2->setType( TType{type} );
 	to_vec2->setOperand( launch_id );
@@ -984,7 +988,7 @@ bool  ShaderTrace::InsertShaderClockMap (glslang::TIntermediate &intermediate, u
 {
 	intermediate.addRequestedExtension( "GL_EXT_shader_realtime_clock" );
 
-	DebugInfo		dbg_info{ intermediate.getStage(), intermediate.getEntryPointMangledName() };
+	DebugInfo		dbg_info{ intermediate };
 
 	TIntermNode*	root = intermediate.getTreeRoot();
 	CHECK_ERR( root );

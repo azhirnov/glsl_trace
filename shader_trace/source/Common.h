@@ -18,7 +18,6 @@ using std::to_string;
 using uint = uint32_t;
 
 #define HIGH_DETAIL_TRACE
-#define USE_NV_RAY_TRACING
 #define USE_STORAGE_QUALIFIERS
 
 #include <assert.h>
@@ -113,38 +112,18 @@ using uint = uint32_t;
 
 ND_ std::string  GetFunctionName (glslang::TIntermOperator *op);
 
-#ifdef USE_NV_RAY_TRACING
-	static const char	RT_LaunchID[]			= "gl_LaunchIDNV";
-	static const char	RT_LaunchSize[]			= "gl_LaunchSizeNV";
-	static const char	RT_InstanceCustomIndex[]= "gl_InstanceCustomIndexNV";
-	static const char	RT_WorldRayOrigin[]		= "gl_WorldRayOriginNV";
-	static const char	RT_WorldRayDirection[]	= "gl_WorldRayDirectionNV";
-	static const char	RT_ObjectRayOrigin[]	= "gl_ObjectRayOriginNV";
-	static const char	RT_ObjectRayDirection[]	= "gl_ObjectRayDirectionNV";
-	static const char	RT_RayTmin[]			= "gl_RayTminNV";
-	static const char	RT_RayTmax[]			= "gl_RayTmaxNV";
-	static const char	RT_IncomingRayFlags[]	= "gl_IncomingRayFlagsNV";
-	static const char	RT_ObjectToWorld[]		= "gl_ObjectToWorldNV";
-	static const char	RT_WorldToObject[]		= "gl_WorldToObjectNV";
-	static const char	RT_HitT[]				= "gl_HitTNV";
-	static const char	RT_HitKind[]			= "gl_HitKindNV";
-	static const char	RT_InstanceID[]			= "gl_InstanceIDNV";
-	static const auto	RT_EbvLaunchId			= glslang::TBuiltInVariable::EbvLaunchIdNV;
-#else
-	static const char	RT_LaunchID[]			= "gl_LaunchID";
-	static const char	RT_LaunchSize[]			= "gl_LaunchSize";
-	static const char	RT_InstanceCustomIndex[]= "gl_InstanceCustomIndex";
-	static const char	RT_WorldRayOrigin[]		= "gl_WorldRayOrigin";
-	static const char	RT_WorldRayDirection[]	= "gl_WorldRayDirection";
-	static const char	RT_ObjectRayOrigin[]	= "gl_ObjectRayOrigin";
-	static const char	RT_ObjectRayDirection[]	= "gl_ObjectRayDirection";
-	static const char	RT_RayTmin[]			= "gl_RayTmin";
-	static const char	RT_RayTmax[]			= "gl_RayTmax";
-	static const char	RT_IncomingRayFlags[]	= "gl_IncomingRayFlags";
-	static const char	RT_ObjectToWorld[]		= "gl_ObjectToWorld";
-	static const char	RT_WorldToObject[]		= "gl_WorldToObject";
-	static const char	RT_HitT[]				= "gl_HitT";
-	static const char	RT_HitKind[]			= "gl_HitKind";
-	static const char	RT_InstanceID[]			= "gl_InstanceID";
-	static const auto	RT_EbvLaunchId			= glslang::TBuiltInVariable::EbvLaunchId;
-#endif
+static const char*	RT_LaunchID[]			= { "gl_LaunchID",				"gl_LaunchIDNV" };
+static const char*	RT_LaunchSize[]			= { "gl_LaunchSize",			"gl_LaunchSizeNV" };
+static const char*	RT_InstanceCustomIndex[]= { "gl_InstanceCustomIndex",	"gl_InstanceCustomIndexNV" };
+static const char*	RT_WorldRayOrigin[]		= {	"gl_WorldRayOrigin",		"gl_WorldRayOriginNV" };
+static const char*	RT_WorldRayDirection[]	= {	"gl_WorldRayDirection",		"gl_WorldRayDirectionNV" };
+static const char*	RT_ObjectRayOrigin[]	= {	"gl_ObjectRayOrigin",		"gl_ObjectRayOriginNV" };
+static const char*	RT_ObjectRayDirection[]	= {	"gl_ObjectRayDirection",	"gl_ObjectRayDirectionNV" };
+static const char*	RT_RayTmin[]			= {	"gl_RayTmin",				"gl_RayTminNV" };
+static const char*	RT_RayTmax[]			= {	"gl_RayTmax",				"gl_RayTmaxNV" };
+static const char*	RT_IncomingRayFlags[]	= {	"gl_IncomingRayFlags",		"gl_IncomingRayFlagsNV" };
+static const char*	RT_ObjectToWorld[]		= {	"gl_ObjectToWorld",			"gl_ObjectToWorldNV" };
+static const char*	RT_WorldToObject[]		= {	"gl_WorldToObject",			"gl_WorldToObjectNV" };
+static const char*	RT_HitT[]				= {	"gl_HitT",					"gl_HitTNV" };
+static const char*	RT_HitKind[]			= {	"gl_HitKind",				"gl_HitKindNV" };
+static const char*	RT_InstanceID[]			= {	"gl_InstanceID",			"gl_InstanceIDNV" };

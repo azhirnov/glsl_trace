@@ -67,7 +67,7 @@ namespace {
 
 	public:
 		CallStack_t				_callStack;
-		TIntermTyped *			_injection		= nullptr;
+		TIntermTyped *			_injection			= nullptr;
 
 		RequiredFunctions_t		_requiredFunctions;
 		CachedSymbols_t			_cachedSymbols;
@@ -77,24 +77,27 @@ namespace {
 		FnCallMap_t				_fnCallMap;
 		StructFieldMap_t		_fieldMap;
 
-		int						_maxSymbolId	= 0;
+		int						_maxSymbolId		= 0;
 
-		TIntermSymbol *			_dbgStorage		= nullptr;
+		TIntermSymbol *			_dbgStorage			= nullptr;
 
 		FileMap_t const&		_includedFilesMap;
 
 		const string			_entryName;
 
 		const EShLanguage		_shLang;
-		bool					_isOpenGL		= false;
+		bool					_isOpenGL			= false;
+
+		const bool				_hasNVRayTracingExt	= false;	// switch between VN and KHR extensions
 
 
 	public:
-		DebugInfo (EShLanguage shLang, const string &entry, OUT ExprInfos_t &exprLoc, const FileMap_t &includedFiles) :
+		DebugInfo (const TIntermediate &intermediate, OUT ExprInfos_t &exprLoc, const FileMap_t &includedFiles) :
 			_exprLocations{ exprLoc },
 			_includedFilesMap{ includedFiles },
-			_entryName{ entry },
-			_shLang{ shLang }
+			_entryName{ intermediate.getEntryPointMangledName() },
+			_shLang{ intermediate.getStage() },
+			_hasNVRayTracingExt{ intermediate.getRequestedExtensions().find("GL_NV_ray_tracing") != intermediate.getRequestedExtensions().end() }
 		{}
 
 		void Enter (TIntermNode* node);
@@ -142,7 +145,8 @@ namespace {
 
 			bool			PostProcess (OUT VarNames_t &);
 
-		ND_ EShLanguage		GetShaderType ()	const						{ return _shLang; }
+		ND_ EShLanguage		GetShaderType ()						const	{ return _shLang; }
+		ND_ uint			IsNVRT ()								const	{ return uint(_hasNVRayTracingExt); }
 
 
 	private:
@@ -1240,15 +1244,15 @@ static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 		dbgInfo.CacheSymbolNode( symb );
 	}
 
-	if ( need_launch_id and not dbgInfo.GetCachedSymbolNode( RT_LaunchID ))
+	if ( need_launch_id and not dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] ))
 	{
 		TPublicType		uint_type;	uint_type.init({});
 		uint_type.basicType			= TBasicType::EbtUint;
 		uint_type.vectorSize		= 3;
 		uint_type.qualifier.storage	= TStorageQualifier::EvqVaryingIn;
-		uint_type.qualifier.builtIn	= RT_EbvLaunchId;
+		uint_type.qualifier.builtIn	= TBuiltInVariable::EbvLaunchId;
 
-		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), RT_LaunchID, TType{uint_type} };
+		TIntermSymbol*	symb = new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), RT_LaunchID[dbgInfo.IsNVRT()], TType{uint_type} };
 		symb->setLoc( loc );
 		dbgInfo.CacheSymbolNode( symb );
 	}
@@ -2254,7 +2258,7 @@ static TIntermAggregate*  RecordRayGenShaderInfo (const TSourceLoc &loc, DebugIn
 	
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
-		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
+		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] );
 		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
@@ -2274,7 +2278,7 @@ static TIntermAggregate*  RecordHitShaderInfo (const TSourceLoc &loc, DebugInfo 
 	
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
-		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
+		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] );
 		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
@@ -2295,84 +2299,84 @@ static TIntermAggregate*  RecordHitShaderInfo (const TSourceLoc &loc, DebugInfo 
 	}
 
 	// "dbg_AppendToTrace( gl_InstanceCustomIndex, location )"
-	if ( auto* instance_index = dbgInfo.GetCachedSymbolNode( RT_InstanceCustomIndex ))
+	if ( auto* instance_index = dbgInfo.GetCachedSymbolNode( RT_InstanceCustomIndex[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( instance_index, loc );
 		body->getSequence().push_back( CreateAppendToTrace( instance_index, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayOrigin, location )"
-	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( RT_WorldRayOrigin ))
+	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( RT_WorldRayOrigin[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayDirection, location )"
-	if ( auto* world_ray_direction = dbgInfo.GetCachedSymbolNode( RT_WorldRayDirection ))
+	if ( auto* world_ray_direction = dbgInfo.GetCachedSymbolNode( RT_WorldRayDirection[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_direction, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayOrigin, location )"
-	if ( auto* object_ray_origin = dbgInfo.GetCachedSymbolNode( RT_ObjectRayOrigin ))
+	if ( auto* object_ray_origin = dbgInfo.GetCachedSymbolNode( RT_ObjectRayOrigin[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayDirection, location )"
-	if ( auto* object_ray_direction = dbgInfo.GetCachedSymbolNode( RT_ObjectRayDirection ))
+	if ( auto* object_ray_direction = dbgInfo.GetCachedSymbolNode( RT_ObjectRayDirection[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_direction, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmin, location )"
-	if ( auto* ray_tmin = dbgInfo.GetCachedSymbolNode( RT_RayTmin ))
+	if ( auto* ray_tmin = dbgInfo.GetCachedSymbolNode( RT_RayTmin[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmax, location )"
-	if ( auto* ray_tmax = dbgInfo.GetCachedSymbolNode( RT_RayTmax ))
+	if ( auto* ray_tmax = dbgInfo.GetCachedSymbolNode( RT_RayTmax[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmax, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmax, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_IncomingRayFlags, location )"
-	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( RT_IncomingRayFlags ))
+	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( RT_IncomingRayFlags[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
 		body->getSequence().push_back( CreateAppendToTrace( incoming_ray_flags, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_HitT, location )"
-	if ( auto* hit_t = dbgInfo.GetCachedSymbolNode( RT_HitT ))
+	if ( auto* hit_t = dbgInfo.GetCachedSymbolNode( RT_HitT[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( hit_t, loc );
 		body->getSequence().push_back( CreateAppendToTrace( hit_t, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_HitKind, location )"
-	if ( auto* hit_kind = dbgInfo.GetCachedSymbolNode( RT_HitKind ))
+	if ( auto* hit_kind = dbgInfo.GetCachedSymbolNode( RT_HitKind[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( hit_kind, loc );
 		body->getSequence().push_back( CreateAppendToTrace( hit_kind, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectToWorld, location )"
-	if ( auto* object_to_world = dbgInfo.GetCachedSymbolNode( RT_ObjectToWorld ))
+	if ( auto* object_to_world = dbgInfo.GetCachedSymbolNode( RT_ObjectToWorld[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_to_world, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_to_world, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldToObject, location )"
-	if ( auto* world_to_object = dbgInfo.GetCachedSymbolNode( RT_WorldToObject ))
+	if ( auto* world_to_object = dbgInfo.GetCachedSymbolNode( RT_WorldToObject[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_to_object, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_to_object, loc_id, dbgInfo ));
@@ -2392,7 +2396,7 @@ static TIntermAggregate*  RecordIntersectionShaderInfo (const TSourceLoc &loc, D
 	
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
-		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
+		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] );
 		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
@@ -2413,70 +2417,70 @@ static TIntermAggregate*  RecordIntersectionShaderInfo (const TSourceLoc &loc, D
 	}
 
 	// "dbg_AppendToTrace( gl_InstanceCustomIndex, location )"
-	if ( auto* instance_index = dbgInfo.GetCachedSymbolNode( RT_InstanceCustomIndex ))
+	if ( auto* instance_index = dbgInfo.GetCachedSymbolNode( RT_InstanceCustomIndex[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( instance_index, loc );
 		body->getSequence().push_back( CreateAppendToTrace( instance_index, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayOrigin, location )"
-	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( RT_WorldRayOrigin ))
+	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( RT_WorldRayOrigin[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayDirection, location )"
-	if ( auto* world_ray_dir = dbgInfo.GetCachedSymbolNode( RT_WorldRayDirection ))
+	if ( auto* world_ray_dir = dbgInfo.GetCachedSymbolNode( RT_WorldRayDirection[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_dir, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_dir, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayOrigin, location )"
-	if ( auto* object_ray_origin = dbgInfo.GetCachedSymbolNode( RT_ObjectRayOrigin ))
+	if ( auto* object_ray_origin = dbgInfo.GetCachedSymbolNode( RT_ObjectRayOrigin[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayDirection, location )"
-	if ( auto* object_ray_dir = dbgInfo.GetCachedSymbolNode( RT_ObjectRayDirection ))
+	if ( auto* object_ray_dir = dbgInfo.GetCachedSymbolNode( RT_ObjectRayDirection[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_ray_dir, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_ray_dir, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmin, location )"
-	if ( auto* ray_tmin = dbgInfo.GetCachedSymbolNode( RT_RayTmin ))
+	if ( auto* ray_tmin = dbgInfo.GetCachedSymbolNode( RT_RayTmin[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_RayTmax, location )"
-	if ( auto* ray_tmax = dbgInfo.GetCachedSymbolNode( RT_RayTmax ))
+	if ( auto* ray_tmax = dbgInfo.GetCachedSymbolNode( RT_RayTmax[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( ray_tmax, loc );
 		body->getSequence().push_back( CreateAppendToTrace( ray_tmax, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_IncomingRayFlags, location )"
-	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( RT_IncomingRayFlags ))
+	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( RT_IncomingRayFlags[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
 		body->getSequence().push_back( CreateAppendToTrace( incoming_ray_flags, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectToWorld, location )"
-	if ( auto* object_to_world = dbgInfo.GetCachedSymbolNode( RT_ObjectToWorld ))
+	if ( auto* object_to_world = dbgInfo.GetCachedSymbolNode( RT_ObjectToWorld[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( object_to_world, loc );
 		body->getSequence().push_back( CreateAppendToTrace( object_to_world, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldToObject, location )"
-	if ( auto* world_to_object = dbgInfo.GetCachedSymbolNode( RT_WorldToObject ))
+	if ( auto* world_to_object = dbgInfo.GetCachedSymbolNode( RT_WorldToObject[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_to_object, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_to_object, loc_id, dbgInfo ));
@@ -2496,35 +2500,35 @@ static TIntermAggregate*  RecordMissShaderInfo (const TSourceLoc &loc, DebugInfo
 	
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
-		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
+		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] );
 		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
 	
 	// "dbg_AppendToTrace( gl_WorldRayOrigin, location )"
-	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( RT_WorldRayOrigin ))
+	if ( auto* world_ray_origin = dbgInfo.GetCachedSymbolNode( RT_WorldRayOrigin[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_WorldRayDirection, location )"
-	if ( auto* world_ray_direction = dbgInfo.GetCachedSymbolNode( RT_WorldRayDirection ))
+	if ( auto* world_ray_direction = dbgInfo.GetCachedSymbolNode( RT_WorldRayDirection[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( world_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( world_ray_direction, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayOrigin, location )"
-	if ( auto* obj_ray_origin = dbgInfo.GetCachedSymbolNode( RT_ObjectRayOrigin ))
+	if ( auto* obj_ray_origin = dbgInfo.GetCachedSymbolNode( RT_ObjectRayOrigin[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( obj_ray_origin, loc );
 		body->getSequence().push_back( CreateAppendToTrace( obj_ray_origin, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_ObjectRayDirection, location )"
-	if ( auto* obj_ray_direction = dbgInfo.GetCachedSymbolNode( RT_ObjectRayDirection ))
+	if ( auto* obj_ray_direction = dbgInfo.GetCachedSymbolNode( RT_ObjectRayDirection[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( obj_ray_direction, loc );
 		body->getSequence().push_back( CreateAppendToTrace( obj_ray_direction, loc_id, dbgInfo ));
@@ -2544,14 +2548,14 @@ static TIntermAggregate*  RecordCallableShaderInfo (const TSourceLoc &loc, Debug
 	
 	// "dbg_AppendToTrace( gl_LaunchID, location )"
 	{
-		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID );
+		TIntermSymbol*	invocation	= dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] );
 		const uint		loc_id		= dbgInfo.GetCustomSourceLocation( invocation, loc );
 
 		body->getSequence().push_back( CreateAppendToTrace( invocation, loc_id, dbgInfo ));
 	}
 
 	// "dbg_AppendToTrace( gl_IncomingRayFlags, location )"
-	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( RT_IncomingRayFlags ))
+	if ( auto* incoming_ray_flags = dbgInfo.GetCachedSymbolNode( RT_IncomingRayFlags[dbgInfo.IsNVRT()] ))
 	{
 		const uint	loc_id = dbgInfo.GetCustomSourceLocation( incoming_ray_flags, loc );
 		body->getSequence().push_back( CreateAppendToTrace( incoming_ray_flags, loc_id, dbgInfo ));
@@ -2806,7 +2810,7 @@ static TIntermOperator*  CreateRayTracingShaderIsDebugInvocation (DebugInfo &dbg
 		TIntermConstantUnion*	x_field		= new TIntermConstantUnion{ x_index, TType{index_type} };
 		TIntermBinary*			launch_x	= new TIntermBinary{ TOperator::EOpIndexDirect };
 		launch_x->setType( TType{uint_type} );
-		launch_x->setLeft( dbgInfo.GetCachedSymbolNode( RT_LaunchID ));
+		launch_x->setLeft( dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] ));
 		launch_x->setRight( x_field );
 	
 		// ... == ...
@@ -2826,7 +2830,7 @@ static TIntermOperator*  CreateRayTracingShaderIsDebugInvocation (DebugInfo &dbg
 		TIntermConstantUnion*	y_field		= new TIntermConstantUnion{ y_index, TType{index_type} };
 		TIntermBinary*			launch_y	= new TIntermBinary{ TOperator::EOpIndexDirect };
 		launch_y->setType( TType{uint_type} );
-		launch_y->setLeft( dbgInfo.GetCachedSymbolNode( RT_LaunchID ));
+		launch_y->setLeft( dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] ));
 		launch_y->setRight( y_field );
 	
 		// ... == ...
@@ -2846,7 +2850,7 @@ static TIntermOperator*  CreateRayTracingShaderIsDebugInvocation (DebugInfo &dbg
 		TIntermConstantUnion*	z_field		= new TIntermConstantUnion{ z_index, TType{index_type} };
 		TIntermBinary*			launch_z	= new TIntermBinary{ TOperator::EOpIndexDirect };
 		launch_z->setType( TType{uint_type} );
-		launch_z->setLeft( dbgInfo.GetCachedSymbolNode( RT_LaunchID ));
+		launch_z->setLeft( dbgInfo.GetCachedSymbolNode( RT_LaunchID[dbgInfo.IsNVRT()] ));
 		launch_z->setRight( z_field );
 	
 		// ... == ...
@@ -3801,26 +3805,26 @@ static bool ProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 		 //		reuse 'gl_WorkGroupSize'
 		 node->getName() == "gl_MeshViewCountNV"		or
 		 // ray generation shader
-		 node->getName() == RT_LaunchID					or
-		 node->getName() == RT_LaunchSize				or
+		 node->getName() == RT_LaunchID[dbgInfo.IsNVRT()]			or
+		 node->getName() == RT_LaunchSize[dbgInfo.IsNVRT()]			or
 		 // ray intersection & any-hit & closest-hit & miss shaders
 		 //		reuse 'gl_LaunchID'
 		 //		reuse 'gl_LaunchSize'
 		 //		reuse 'gl_PrimitiveID'
-		 node->getName() == RT_InstanceCustomIndex		or
-		 node->getName() == RT_WorldRayOrigin			or
-		 node->getName() == RT_WorldRayDirection		or
-		 node->getName() == RT_ObjectRayOrigin			or
-		 node->getName() == RT_ObjectRayDirection		or
-		 node->getName() == RT_RayTmin					or
-		 node->getName() == RT_RayTmax					or
-		 node->getName() == RT_IncomingRayFlags			or
-		 node->getName() == RT_ObjectToWorld			or
-		 node->getName() == RT_WorldToObject			or
+		 node->getName() == RT_InstanceCustomIndex[dbgInfo.IsNVRT()]	or
+		 node->getName() == RT_WorldRayOrigin[dbgInfo.IsNVRT()]		or
+		 node->getName() == RT_WorldRayDirection[dbgInfo.IsNVRT()]	or
+		 node->getName() == RT_ObjectRayOrigin[dbgInfo.IsNVRT()]		or
+		 node->getName() == RT_ObjectRayDirection[dbgInfo.IsNVRT()]	or
+		 node->getName() == RT_RayTmin[dbgInfo.IsNVRT()]				or
+		 node->getName() == RT_RayTmax[dbgInfo.IsNVRT()]				or
+		 node->getName() == RT_IncomingRayFlags[dbgInfo.IsNVRT()]	or
+		 node->getName() == RT_ObjectToWorld[dbgInfo.IsNVRT()]		or
+		 node->getName() == RT_WorldToObject[dbgInfo.IsNVRT()]		or
 		 // ray intersection & any-hit & closest-hit shaders
-		 node->getName() == RT_HitT						or
-		 node->getName() == RT_HitKind					or
-		 node->getName() == RT_InstanceID				or
+		 node->getName() == RT_HitT[dbgInfo.IsNVRT()]				or
+		 node->getName() == RT_HitKind[dbgInfo.IsNVRT()]				or
+		 node->getName() == RT_InstanceID[dbgInfo.IsNVRT()]			or
 		 // all shaders
 		 node->getName() == "gl_SubgroupInvocationID"	)
 	{
@@ -3845,7 +3849,7 @@ bool ShaderTrace::InsertTraceRecording (TIntermediate &intermediate, uint descSe
 {
 	CHECK_ERR( intermediate.getNumEntryPoints() == 1 );
 
-	DebugInfo		dbg_info{ intermediate.getStage(), intermediate.getEntryPointMangledName(), OUT _exprLocations, _fileMap };
+	DebugInfo		dbg_info{ intermediate, OUT _exprLocations, _fileMap };
 
 	TIntermNode*	root = intermediate.getTreeRoot();
 	CHECK_ERR( root );

@@ -49,10 +49,10 @@ if (TRUE)
 	endif ()
 
 	if (${EXTERNALS_USE_STABLE_VERSIONS})
-		# stable release January 22, 2020
-		set( GLSLANG_TAG "8.13.3559" )
-		set( SPIRV_TOOLS_TAG "v2019.4" )
-		set( SPIRV_HEADERS_TAG "1.5.1.corrected" )
+		# stable release April 27, 2020
+		set( GLSLANG_TAG "8.13.3743" )
+		set( SPIRV_TOOLS_TAG "v2020.3" )
+		set( SPIRV_HEADERS_TAG "1.5.3" )
 	else ()
 		set( GLSLANG_TAG "master" )
 		set( SPIRV_TOOLS_TAG "master" )

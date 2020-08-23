@@ -110,7 +110,7 @@ bool  Device::_CreateDevice ()
 			#endif
 		};
 		vector< const char* >	instance_layers = {
-			"VK_LAYER_LUNARG_standard_validation"
+			"VK_LAYER_KHRONOS_validation"
 		};
 		
 		CHECK_ERR( VulkanLoader::Initialize() );

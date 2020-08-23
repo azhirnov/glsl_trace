@@ -408,7 +408,7 @@ extern bool ShaderTrace_Test9 (Device& vulkan)
 	CHECK_ERR( vulkan.TestDebugTraceOutput( {raygen_shader}, "ShaderTrace_Test9.txt" ));
 	
 	vulkan.FreeTempHandles();
-
-	std::cout << "ShaderTrace_Test9 - passed" << std::endl;
+	
+	TEST_PASSED();
 	return true;
 }

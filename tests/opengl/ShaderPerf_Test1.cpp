@@ -124,5 +124,6 @@ void main ()
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );
 	glDeleteBuffers( 1, &dbg_buffer );
 
+	TEST_PASSED();
 	return true;
 }

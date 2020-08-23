@@ -61,8 +61,10 @@ int main ()
 
 		if ( i == 1 )
 		{
-			CHECK_ERR( ShaderPerf_Test1(), 1 );
 			CHECK_ERR( ShaderTrace_Test1(), 1 );
+
+			if ( enableShaderDeviceClock or enableShaderSubgroupClock )
+				CHECK_ERR( ShaderPerf_Test1(), 1 );
 		}
 		
 		glfwPollEvents();
