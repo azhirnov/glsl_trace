@@ -338,15 +338,8 @@ static void  CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 	const bool	is_compute			= (shader == EShLangCompute or shader == EShLangTaskNV or shader == EShLangMeshNV);
 	const bool	need_invocation_id	= (shader == EShLangGeometry or shader == EShLangTessControl);
 	const bool	need_primitive_id	= (shader == EShLangFragment or shader == EShLangTessControl or shader == EShLangTessEvaluation);
-	
-	#ifdef USE_NV_RAY_TRACING
-	const bool	need_launch_id		= (shader == EShLangRayGenNV or shader == EShLangIntersectNV or shader == EShLangAnyHitNV or
-									   shader == EShLangClosestHitNV or shader == EShLangMissNV or shader == EShLangCallableNV);
-	#else
 	const bool	need_launch_id		= (shader == EShLangRayGen or shader == EShLangIntersect or shader == EShLangAnyHit or
 									   shader == EShLangClosestHit or shader == EShLangMiss or shader == EShLangCallable);
-	#endif
-
 	TSourceLoc	loc	{};
 
 	if ( shader == EShLangFragment and not dbgInfo.GetCachedSymbolNode( "gl_FragCoord" ))
@@ -697,17 +690,7 @@ static bool  InsertShaderTimeMeasurementToEntry (TIntermAggregate* entry, DebugI
 			case EShLanguage::EShLangCompute :
 				assign_coord = GetComputeCoord( coord, dbgInfo );
 				break;
-				
-		#ifdef USE_NV_RAY_TRACING
-			case EShLanguage::EShLangRayGenNV :
-			case EShLanguage::EShLangIntersectNV :
-			case EShLanguage::EShLangAnyHitNV :
-			case EShLanguage::EShLangClosestHitNV :
-			case EShLanguage::EShLangMissNV :
-			case EShLanguage::EShLangCallableNV :
-				assign_coord = GetRayTracingCoord( coord, dbgInfo );
-				break;
-		#else
+			
 			case EShLanguage::EShLangRayGen :
 			case EShLanguage::EShLangIntersect :
 			case EShLanguage::EShLangAnyHit :
@@ -716,7 +699,6 @@ static bool  InsertShaderTimeMeasurementToEntry (TIntermAggregate* entry, DebugI
 			case EShLanguage::EShLangCallable :
 				assign_coord = GetRayTracingCoord( coord, dbgInfo );
 				break;
-		#endif
 
 			case EShLanguage::EShLangTaskNV :
 			case EShLanguage::EShLangMeshNV :

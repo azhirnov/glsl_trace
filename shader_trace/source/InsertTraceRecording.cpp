@@ -1015,21 +1015,12 @@ static void CreateShaderDebugStorage (uint descSetIndex, DebugInfo &dbgInfo, OUT
 
 		case EShLangCompute :			CreateComputeShaderDebugStorage( type_list, INOUT temp );		break;
 
-		#ifdef USE_NV_RAY_TRACING
-		case EShLangRayGenNV :
-		case EShLangIntersectNV :
-		case EShLangAnyHitNV :
-		case EShLangClosestHitNV :
-		case EShLangMissNV :
-		case EShLangCallableNV :		CreateRayTracingShaderDebugStorage( type_list, INOUT temp );	break;
-		#else
 		case EShLangRayGen :
 		case EShLangIntersect :
 		case EShLangAnyHit :
 		case EShLangClosestHit :
 		case EShLangMiss :
 		case EShLangCallable :			CreateRayTracingShaderDebugStorage( type_list, INOUT temp );	break;
-		#endif
 
 		case EShLangCount :
 		default :						CHECK(false); return;
@@ -1081,15 +1072,8 @@ static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
 	const bool	is_compute			= (shader == EShLangCompute or shader == EShLangTaskNV or shader == EShLangMeshNV);
 	const bool	need_invocation_id	= (shader == EShLangGeometry or shader == EShLangTessControl);
 	const bool	need_primitive_id	= (shader == EShLangFragment or shader == EShLangTessControl or shader == EShLangTessEvaluation);
-
-	#ifdef USE_NV_RAY_TRACING
-	const bool	need_launch_id		= (shader == EShLangRayGenNV or shader == EShLangIntersectNV or shader == EShLangAnyHitNV or
-									   shader == EShLangClosestHitNV or shader == EShLangMissNV or shader == EShLangCallableNV);
-	#else
 	const bool	need_launch_id		= (shader == EShLangRayGen or shader == EShLangIntersect or shader == EShLangAnyHit or
 									   shader == EShLangClosestHit or shader == EShLangMiss or shader == EShLangCallable);
-	#endif
-
 	TSourceLoc	loc		{};
 
 	// find default source location
@@ -1744,12 +1728,8 @@ static TIntermAggregate*  CreateAppendToTraceBody (const TString &fnName, DebugI
 				case TBasicType::EbtReference :
 				case TBasicType::EbtString :
 				case TBasicType::EbtNumTypes :
-				#ifdef USE_NV_RAY_TRACING
-				case TBasicType::EbtAccStructNV :
-				#else
 				case TBasicType::EbtAccStruct :
 				case TBasicType::EbtRayQuery :
-				#endif
 					break;
 			}
 			END_ENUM_CHECKS();
@@ -2581,23 +2561,12 @@ static TIntermAggregate*  RecordShaderInfo (const TSourceLoc &loc, DebugInfo &db
 		case EShLangTaskNV :
 		case EShLangMeshNV :
 		case EShLangCompute :			return RecordComputeShaderInfo( loc, dbgInfo );
-			
-		#ifdef USE_NV_RAY_TRACING
-		case EShLangRayGenNV :			return RecordRayGenShaderInfo( loc, dbgInfo );
-		case EShLangAnyHitNV :
-		case EShLangClosestHitNV :		return RecordHitShaderInfo( loc, dbgInfo );
-		case EShLangIntersectNV :		return RecordIntersectionShaderInfo( loc, dbgInfo );
-		case EShLangMissNV :			return RecordMissShaderInfo( loc, dbgInfo );
-		case EShLangCallableNV :		return RecordCallableShaderInfo( loc, dbgInfo );
-		#else
 		case EShLangRayGen :			return RecordRayGenShaderInfo( loc, dbgInfo );
 		case EShLangAnyHit :
 		case EShLangClosestHit :		return RecordHitShaderInfo( loc, dbgInfo );
 		case EShLangIntersect :			return RecordIntersectionShaderInfo( loc, dbgInfo );
 		case EShLangMiss :				return RecordMissShaderInfo( loc, dbgInfo );
 		case EShLangCallable :			return RecordCallableShaderInfo( loc, dbgInfo );
-		#endif
-
 		case EShLangCount :				break;
 	}
 	END_ENUM_CHECKS();
@@ -2919,21 +2888,12 @@ static bool InsertGlobalVariablesAndBuffers (TIntermAggregate* linkerObjs, TInte
 		case EShLangFragment :		init_enable_recording->setRight( CreateFragmentShaderIsDebugInvocation( dbgInfo ));	break;
 		case EShLangCompute :		init_enable_recording->setRight( CreateComputeShaderIsDebugInvocation( dbgInfo ));		break;
 		
-		#ifdef USE_NV_RAY_TRACING
-		case EShLangRayGenNV :
-		case EShLangIntersectNV :
-		case EShLangAnyHitNV :
-		case EShLangClosestHitNV :
-		case EShLangMissNV :
-		case EShLangCallableNV :	init_enable_recording->setRight( CreateRayTracingShaderIsDebugInvocation( dbgInfo ));		break;
-		#else
 		case EShLangRayGen :
 		case EShLangIntersect :
 		case EShLangAnyHit :
 		case EShLangClosestHit :
 		case EShLangMiss :
 		case EShLangCallable :		init_enable_recording->setRight( CreateRayTracingShaderIsDebugInvocation( dbgInfo ));		break;
-		#endif
 
 		case EShLangCount :
 		default :					RETURN_ERR( "not supported" );
@@ -3259,12 +3219,8 @@ static TIntermAggregate*  CreateAppendToTrace (TIntermTyped* exprNode, uint sour
 		case TBasicType::EbtString :
 		case TBasicType::EbtReference :
 		case TBasicType::EbtNumTypes :
-		#ifdef USE_NV_RAY_TRACING
-		case TBasicType::EbtAccStructNV :
-		#else
 		case TBasicType::EbtAccStruct :
 		case TBasicType::EbtRayQuery :
-		#endif
 		default :						RETURN_ERR( "not supported" );
 	}
 	END_ENUM_CHECKS();
