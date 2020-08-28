@@ -39,7 +39,7 @@ using uint = uint32_t;
 #endif
 
 #ifndef CHECK_ERR
-# if _DEBUG
+# ifdef _DEBUG
 #	define ASSERT( _expr_ )				{ assert(_expr_); }
 # else
 #	define ASSERT( _expr_ )				{}

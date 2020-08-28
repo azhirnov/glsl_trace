@@ -219,7 +219,7 @@ bool  Trace::AddState (const ExprInfo &expr, TBasicType type, uint rows, uint co
 	AddTime
 =================================================
 */
-bool  Trace::AddTime (const ExprInfo &expr, uint rows, uint cols, const uint *data)
+bool  Trace::AddTime (const ExprInfo &expr, uint, uint, const uint *data)
 {
 	auto&	fn = _profiling[ &expr ];
 
@@ -262,7 +262,7 @@ inline string  ToString (float value)
 	float	f		 = std::abs(value);
 	bool	exp		 = f != 0.0f and (f < 1.0e-4f or f > 1.0e+5f);
 	char	buf[128] = {};
-	int		len		 = std::snprintf( buf, sizeof(buf), (exp ? "%1.6e" : "%0.6f"), value );
+	std::snprintf( buf, sizeof(buf), (exp ? "%1.6e" : "%0.6f"), value );
 	return buf;
 }
 
@@ -271,7 +271,7 @@ inline string  ToString (double value)
 	double	f		 = std::abs(value);
 	bool	exp		 = f != 0.0 and (f < 1.0e-4 or f > 1.0e+5);
 	char	buf[128] = {};
-	int		len		 = std::snprintf( buf, sizeof(buf), (exp ? "%1.8e" : "%0.8f"), value );
+	std::snprintf( buf, sizeof(buf), (exp ? "%1.8e" : "%0.8f"), value );
 	return buf;
 }
 

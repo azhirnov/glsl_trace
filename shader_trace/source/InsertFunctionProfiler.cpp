@@ -1170,7 +1170,7 @@ static void  CreateShaderDebugStorage (uint descSetIndex, DebugInfo &dbgInfo, OU
 	CreateShaderBuiltinSymbols
 =================================================
 */
-static void  CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
+static void  CreateShaderBuiltinSymbols (TIntermNode*, DebugInfo &dbgInfo)
 {
 	const auto	shader				= dbgInfo.GetShaderType();
 	const bool	is_compute			= (shader == EShLangCompute or shader == EShLangTaskNV or shader == EShLangMeshNV);
@@ -3708,38 +3708,6 @@ static bool  CreateDebugTraceFunctions (TIntermNode* root, uint initialPosition,
 			RETURN_ERR( "unknown function" );
 	}
 	return true;
-}
-
-/*
-=================================================
-	CreateAppendToTrace2
-----
-	'sourceLoc' - location index returned by 'DebugInfo::GetCustomSourceLocation'.
-	also see 'CreateAppendToTraceBody2()'
-=================================================
-*/
-static TIntermAggregate*  CreateAppendToTrace2 (uint sourceLoc, DebugInfo &dbgInfo)
-{
-	TIntermAggregate*	fcall = new TIntermAggregate( TOperator::EOpFunctionCall );
-
-	fcall->setUserDefined();
-	fcall->setName( "dbg_AppendToTrace(u1;" );
-	fcall->setType( TType{ TBasicType::EbtVoid, TStorageQualifier::EvqGlobal });
-	fcall->getQualifierList().push_back( TStorageQualifier::EvqConstReadOnly );
-	
-	TPublicType		uint_type;		uint_type.init({});
-	uint_type.basicType				= TBasicType::EbtUint;
-	uint_type.qualifier.storage		= TStorageQualifier::EvqConst;
-
-	TConstUnionArray		loc_value(1);	loc_value[0].setUConst( sourceLoc );
-	TIntermConstantUnion*	loc_const		= new TIntermConstantUnion{ loc_value, TType{uint_type} };
-	
-	loc_const->setLoc({});
-	fcall->getSequence().push_back( loc_const );
-
-	dbgInfo.RequestFunc( fcall->getName() );
-
-	return fcall;
 }
 
 /*

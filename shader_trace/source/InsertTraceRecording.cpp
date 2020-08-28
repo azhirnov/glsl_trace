@@ -577,31 +577,6 @@ ND_ static uint  GetVectorSwizzleMask (TIntermBinary* binary)
 
 /*
 =================================================
-	GetStructFieldInfo
-=================================================
-*/
-static bool  GetStructFieldInfo (TIntermBinary* binary, OUT DebugInfo::FieldInfo &result, OUT TString &name)
-{
-	ASSERT( binary and binary->getOp() == TOperator::EOpIndexDirectStruct );
-
-	TIntermSymbol*			symb	= binary->getLeft()->getAsSymbolNode();
-	TIntermConstantUnion*	cu		= binary->getRight()->getAsConstantUnion();
-
-	CHECK_ERR( symb );
-	CHECK_ERR( cu and cu->getConstArray().size() and cu->getConstArray()[0].getType() == TBasicType::EbtInt );
-
-	result.baseId		= symb->getId();
-	result.fieldIndex	= cu->getConstArray()[0].getIConst();
-
-	auto*	fields = symb->getType().getStruct();
-	CHECK_ERR( fields and result.fieldIndex < int(fields->size()) );
-
-	name = (symb->getName().rfind("anon@", 0) == 0 ? "" : symb->getName() + ".") + (*fields)[result.fieldIndex].type->getFieldName();
-	return true;
-}
-
-/*
-=================================================
 	_GetVariableID
 =================================================
 */
@@ -1066,7 +1041,7 @@ static void CreateShaderDebugStorage (uint descSetIndex, DebugInfo &dbgInfo, OUT
 	CreateShaderBuiltinSymbols
 =================================================
 */
-static void CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
+static void CreateShaderBuiltinSymbols (TIntermNode*, DebugInfo &dbgInfo)
 {
 	const auto	shader				= dbgInfo.GetShaderType();
 	const bool	is_compute			= (shader == EShLangCompute or shader == EShLangTaskNV or shader == EShLangMeshNV);

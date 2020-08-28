@@ -332,7 +332,7 @@ static void  CreateShaderDebugStorage (uint descSetIndex, DebugInfo &dbgInfo, OU
 	CreateShaderBuiltinSymbols
 =================================================
 */
-static void  CreateShaderBuiltinSymbols (TIntermNode* root, DebugInfo &dbgInfo)
+static void  CreateShaderBuiltinSymbols (TIntermNode*, DebugInfo &dbgInfo)
 {
 	const auto	shader				= dbgInfo.GetShaderType();
 	const bool	is_compute			= (shader == EShLangCompute or shader == EShLangTaskNV or shader == EShLangMeshNV);
