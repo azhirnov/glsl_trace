@@ -43,7 +43,7 @@ void main ()
 	imageStore( un_Output, ivec2(gl_LaunchIDNV), payload );
 }
 )#";
-		CHECK_ERR( vulkan.Compile( OUT rayGenShader, {rt_shader, raygen_shader_source}, EShLangRayGenNV, ETraceMode::DebugTrace, 1 ));
+		CHECK_ERR( vulkan.Compile( OUT rayGenShader, {rt_shader, raygen_shader_source}, SPV_COMP_SHADER_TYPE_RAY_GEN, SPV_COMP_DEBUG_MODE_TRACE, 1 ));
 	}
 
 	// create ray miss shader
@@ -56,7 +56,7 @@ void main ()
 	payload = vec4( 0.412f, 0.796f, 1.0f, 1.0f );
 }
 )#";
-		CHECK_ERR( vulkan.Compile( OUT rayMissShader, {rt_shader, raymiss_shader_source}, EShLangMissNV ));
+		CHECK_ERR( vulkan.Compile( OUT rayMissShader, {rt_shader, raymiss_shader_source}, SPV_COMP_SHADER_TYPE_RAY_MISS ));
 	}
 
 	// create ray closest hit shader
@@ -71,7 +71,7 @@ void main ()
 	payload = vec4(barycentrics, 1.0);
 }
 )#";
-		CHECK_ERR( vulkan.Compile( OUT rayClosestHitShader, {rt_shader, closesthit_shader_source}, EShLangClosestHitNV ));
+		CHECK_ERR( vulkan.Compile( OUT rayClosestHitShader, {rt_shader, closesthit_shader_source}, SPV_COMP_SHADER_TYPE_RAY_CLOSEST_HIT ));
 	}
 	return true;
 }

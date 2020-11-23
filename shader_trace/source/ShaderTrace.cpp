@@ -48,12 +48,14 @@ void ShaderTrace::_AppendSource (const char* source, size_t length)
 	SetSource
 =================================================
 */
-void ShaderTrace::SetSource (const char* const* sources, const size_t *lengths, size_t count)
+void ShaderTrace::SetSource (const char* const* sources, const int *lengths, size_t count)
 {
 	_sources.clear();
 	_sources.reserve( count );
 
-	for (size_t i = 0; i < count; ++i) {
+	for (size_t i = 0; i < count; ++i)
+	{
+		ASSERT( sources[i] != nullptr );
 		_AppendSource( sources[i], (lengths ? lengths[i] : strlen(sources[i])) );
 	}
 }
@@ -62,8 +64,9 @@ void ShaderTrace::SetSource (const char* source, size_t length)
 {
 	ASSERT( length > 0 );
 
-	const char*	sources[] = { source };
-	return SetSource( sources, &length, 1 );
+	const char*	sources[]	= { source };
+	const int   len			= int(length);
+	return SetSource( sources, &len, 1 );
 }
 
 void ShaderTrace::IncludeSource (const char* filename, const char* source, size_t length)

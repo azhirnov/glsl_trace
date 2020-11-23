@@ -21,7 +21,7 @@ void main()
 	gl_Position	= vec4( g_Positions[gl_VertexIndex], float(gl_VertexIndex) * 0.02f, 1.0f );
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT vertShader, {vert_shader_source}, EShLangVertex ));
+		CHECK_ERR( vulkan.Compile( OUT vertShader, {vert_shader_source}, SPV_COMP_SHADER_TYPE_VERTEX ));
 	}
 
 	// create fragment shader
@@ -47,7 +47,7 @@ void main ()
 	out_Color = (m4 * vec4(8.0f)) + vec4(m2 * vec2(9.0f), 1.0f);
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, EShLangFragment, ETraceMode::DebugTrace, 0 ));
+		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, SPV_COMP_SHADER_TYPE_FRAGMENT, SPV_COMP_DEBUG_MODE_TRACE, 0 ));
 	}
 	return true;
 }

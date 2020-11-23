@@ -5,21 +5,8 @@
 #include <functional>
 #include <memory>
 
-// glslang includes
-#include "glslang/MachineIndependent/localintermediate.h"
-#include "glslang/Include/intermediate.h"
-#include "glslang/SPIRV/doc.h"
-#include "glslang/SPIRV/disassemble.h"
-#include "glslang/SPIRV/GlslangToSpv.h"
-#include "glslang/SPIRV/GLSL.std.450.h"
-#include "StandAlone/ResourceLimits.cpp"
-using namespace glslang;
-
-// spirv cross
-#ifdef ENABLE_SPIRV_CROSS
-#	include "spirv_cross.hpp"
-#	include "spirv_glsl.hpp"
-#endif
+#define NOMINMAX
+#include <Windows.h>
 
 #ifdef __linux__
 #   define fopen_s( _outFile_, _name_, _mode_ ) (*(_outFile_) = fopen( (_name_), (_mode_) ))
@@ -58,11 +45,17 @@ static const bool	UpdateReferences = true;
 */
 bool  Device::Create ()
 {
-	glslang::InitializeProcess();
-	_tempBuf.reserve( 1024 );
-
 	CHECK_ERR( _CreateDevice() );
 	CHECK_ERR( _CreateResources() );
+
+	HMODULE lib = ::LoadLibraryA( "SpvCompilerd.dll" );
+	CHECK_ERR( lib );
+
+	auto* pGetSpvCompilerFn = reinterpret_cast<decltype(GetSpvCompilerFn)*>( ::GetProcAddress( lib, "GetSpvCompilerFn" ));
+	CHECK_ERR( pGetSpvCompilerFn );
+
+	pGetSpvCompilerFn( OUT &_compilerFn );
+
 	return true;
 }
 
@@ -76,12 +69,10 @@ void  Device::Destroy ()
 	_DestroyResources();
 	_DestroyDevice();
 
-	for (auto&[module, trace] : _debuggableShaders) {
-		delete trace;
+	for (auto&[module, shader] : _debuggableShaders) {
+		_compilerFn.ReleaseShader( shader );
 	}
 	_debuggableShaders.clear();
-
-	glslang::FinalizeProcess();
 }
 
 /*
@@ -703,16 +694,16 @@ void  Device::_ValidateDeviceExtensions (INOUT vector<const char*> &extensions) 
 	Compile
 =================================================
 */
-bool  Device::Compile  (OUT VkShaderModule &		shaderModule,
-						vector<const char *>		source,
-						EShLanguage					shaderType,
-						ETraceMode					mode,
-						uint						dbgBufferSetIndex,
-						EShTargetLanguageVersion	spvVersion)
+bool  Device::Compile  (OUT VkShaderModule &	shaderModule,
+						vector<const char *>	source,
+					    SPV_COMP_SHADER_TYPE	shaderType,
+					    SPV_COMP_DEBUG_MODE		mode,
+					    uint					dbgBufferSetIndex,
+					    SPV_COMP_VERSION		version)
 {
 	vector<const char *>	shader_src;
-	const bool				debuggable	= dbgBufferSetIndex != ~0u;
-	unique_ptr<ShaderTrace>	debug_info	{ debuggable ? new ShaderTrace{} : nullptr };
+	vector<int>				src_len;
+	CompiledShader*			shader		= nullptr;
 	const string			header		= "#version 460 core\n"
 										  "#extension GL_ARB_separate_shader_objects : require\n"
 										  "#extension GL_ARB_shading_language_420pack : require\n";
@@ -720,134 +711,33 @@ bool  Device::Compile  (OUT VkShaderModule &		shaderModule,
 	shader_src.push_back( header.data() );
 	shader_src.insert( shader_src.end(), source.begin(), source.end() );
 
-	if ( not _Compile( OUT _tempBuf, OUT debug_info.get(), dbgBufferSetIndex, shader_src, shaderType, mode, spvVersion ))
+	for (size_t i = 0; i < shader_src.size(); ++i) {
+		src_len.push_back( int(strlen(shader_src[i])) );
+	}
+
+	if ( not _compilerFn.Compile( shader_src.data(), src_len.data(), uint(shader_src.size()), "main", nullptr, 0, shaderType, version, mode, nullptr, dbgBufferSetIndex, &shader ))
 		return false;
 
-	VkShaderModuleCreateInfo	info = {};
+	VkShaderModuleCreateInfo	info		= {};
+	uint						spirv_size	= 0;
+
+	if ( not _compilerFn.GetShaderBinary( shader, &info.pCode, &spirv_size ))
+		return false;
+
 	info.sType		= VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	info.flags		= 0;
-	info.pCode		= _tempBuf.data();
-	info.codeSize	= sizeof(_tempBuf[0]) * _tempBuf.size();
+	info.codeSize	= spirv_size;
 
 	VK_CHECK( vkCreateShaderModule( device, &info, nullptr, OUT &shaderModule ));
 	tempHandles.emplace_back( EHandleType::Shader, uint64_t(shaderModule) );
 
-	if ( debuggable ) {
-		_debuggableShaders.insert_or_assign( shaderModule, debug_info.release() );
-	}
-	return true;
-}
-
-/*
-=================================================
-	_Compile
-=================================================
-*/
-bool  Device::_Compile (OUT vector<uint>&			spirvData,
-						OUT ShaderTrace*			dbgInfo,
-						uint						dbgBufferSetIndex,
-						vector<const char *>		source,
-						EShLanguage					shaderType,
-						ETraceMode					mode,
-						EShTargetLanguageVersion	spvVersion)
-{
-	EShMessages				messages		= EShMsgDefault;
-	TProgram				program;
-	TShader					shader			{ shaderType };
-	EshTargetClientVersion	client_version	= EShTargetVulkan_1_1;
-	TBuiltInResource		builtin_res		= DefaultTBuiltInResource;
-
-	shader.setStrings( source.data(), int(source.size()) );
-	shader.setEntryPoint( "main" );
-	shader.setEnvInput( EShSourceGlsl, shaderType, EShClientVulkan, 110 );
-	shader.setEnvClient( EShClientVulkan, client_version );
-	shader.setEnvTarget( EshTargetSpv, spvVersion );
-
-	if ( not shader.parse( &builtin_res, 460, ECoreProfile, false, true, messages ))
+	if ( shader and mode != SPV_COMP_DEBUG_MODE_NONE )
 	{
-		std::cout << shader.getInfoLog() << std::endl;
-		return false;
+		_debuggableShaders.insert_or_assign( shaderModule, shader );
 	}
-		
-	program.addShader( &shader );
+	else
+		_compilerFn.ReleaseShader( shader );
 
-	if ( not program.link( messages ) )
-	{
-		std::cout << program.getInfoLog() << std::endl;
-		return false;
-	}
-
-	TIntermediate*	intermediate = program.getIntermediate( shader.getStage() );
-	if ( not intermediate )
-		return false;
-
-	if ( dbgInfo )
-	{
-		BEGIN_ENUM_CHECKS();
-		switch ( mode )
-		{
-			case ETraceMode::DebugTrace :
-				CHECK_ERR( dbgInfo->InsertTraceRecording( INOUT *intermediate, dbgBufferSetIndex ));
-				break;
-
-			case ETraceMode::Performance :
-				CHECK_ERR( dbgInfo->InsertFunctionProfiler( INOUT *intermediate, dbgBufferSetIndex,
-														    shaderClockFeat.shaderSubgroupClock,
-														    shaderClockFeat.shaderDeviceClock ));
-				break;
-				
-			case ETraceMode::TimeMap :
-				CHECK_ERR( shaderClockFeat.shaderDeviceClock );
-				CHECK_ERR( dbgInfo->InsertShaderClockHeatmap( INOUT *intermediate, dbgBufferSetIndex ));
-				break;
-
-			case ETraceMode::None :
-			default :
-				RETURN_ERR( "unknown shader trace mode" );
-		}
-		END_ENUM_CHECKS();
-	
-		dbgInfo->SetSource( source.data(), nullptr, source.size() );
-	}
-
-	SpvOptions				spv_options;
-	spv::SpvBuildLogger		logger;
-
-	spv_options.generateDebugInfo	= false;
-	spv_options.disableOptimizer	= true;
-	spv_options.optimizeSize		= false;
-	spv_options.validate			= false;
-		
-	spirvData.clear();
-	GlslangToSpv( *intermediate, OUT spirvData, &logger, &spv_options );
-
-	CHECK_ERR( spirvData.size() );
-	
-	// for debugging
-	#if 0 //def ENABLE_SPIRV_CROSS
-	{
-		spirv_cross::CompilerGLSL			compiler {spirvData.data(), spirvData.size()};
-		spirv_cross::CompilerGLSL::Options	opt = {};
-
-		opt.version						= 460;
-		opt.es							= false;
-		opt.vulkan_semantics			= true;
-		opt.separate_shader_objects		= true;
-		opt.enable_420pack_extension	= true;
-
-		opt.vertex.fixup_clipspace		= false;
-		opt.vertex.flip_vert_y			= false;
-		opt.vertex.support_nonzero_base_instance = true;
-
-		opt.fragment.default_float_precision	= spirv_cross::CompilerGLSL::Options::Precision::Highp;
-		opt.fragment.default_int_precision		= spirv_cross::CompilerGLSL::Options::Precision::Highp;
-
-		compiler.set_common_options(opt);
-
-		std::string	glsl_src = compiler.compile();
-		std::cout << glsl_src << std::endl;
-	}
-	#endif
 	return true;
 }
 
@@ -861,7 +751,23 @@ bool  Device::_GetDebugOutput (VkShaderModule shaderModule, const void *ptr, VkD
 	auto	iter = _debuggableShaders.find( shaderModule );
 	CHECK_ERR( iter != _debuggableShaders.end() );
 
-	return iter->second->ParseShaderTrace( ptr, maxSize, OUT result );
+	ShaderTraceResult*	trace_result = nullptr;
+	if ( not _compilerFn.ParseShaderTrace( iter->second, ptr, maxSize, OUT &trace_result ))
+		return false;
+
+	uint	count = 0;
+	_compilerFn.GetTraceResultCount( trace_result, OUT &count );
+
+	result.resize( count );
+	for (uint i = 0; i < count; ++i)
+	{
+		const char*		str = nullptr;
+		_compilerFn.GetTraceResultString( trace_result, i, OUT &str );
+		result[i] = str;
+	}
+
+	_compilerFn.ReleaseTraceResult( trace_result );
+	return true;
 }
 
 /*
@@ -1675,7 +1581,7 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 		
 			as_info.accelerationStructure	= bottomLevelAS;
 			vkGetAccelerationStructureMemoryRequirementsNV( device, &as_info, OUT &mem_req2 );
-			info.size = Max( info.size, mem_req2.memoryRequirements.size );
+			info.size = std::max( info.size, mem_req2.memoryRequirements.size );
 		}
 
 		VK_CHECK( vkCreateBuffer( device, &info, nullptr, OUT &scratch_buffer ));

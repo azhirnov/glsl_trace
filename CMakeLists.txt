@@ -54,6 +54,7 @@ endif ()
 include( "cmake/download_glslang.cmake" )
 include( "cmake/project_template.cmake" )
 add_subdirectory( "shader_trace" )
+add_subdirectory( "spv_compiler" )
 
 if (DEFINED CI_BUILD)
 	include( "cmake/download_vk.cmake" )

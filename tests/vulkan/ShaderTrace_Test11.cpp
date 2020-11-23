@@ -38,7 +38,7 @@ void main()
 	imageStore( un_OutImage, ivec2(gl_GlobalInvocationID.xy), color );
 }
 )#";
-		CHECK_ERR( vulkan.Compile( OUT compShader, {comp_shader_source}, EShLangCompute, ETraceMode::DebugTrace, 1 ));
+		CHECK_ERR( vulkan.Compile( OUT compShader, {comp_shader_source}, SPV_COMP_SHADER_TYPE_COMPUTE, SPV_COMP_DEBUG_MODE_TRACE, 1 ));
 	}
 	return true;
 }

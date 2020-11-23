@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "source/Common.h"
+#include "../source/Common.h"
 
 #ifdef _MSC_VER
 #	pragma warning (push, 0)

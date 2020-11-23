@@ -3,6 +3,7 @@
 #pragma once
 
 #include "VulkanLoader.h"
+#include "SpvCompiler.h"
 #include <iostream>
 
 using namespace std::string_literals;
@@ -49,11 +50,12 @@ private:
 	VkPhysicalDeviceMemoryProperties	_deviceMemoryProperties;
 	VkDebugUtilsMessengerEXT			_debugUtilsMessenger	= VK_NULL_HANDLE;
 	
-	using Debuggable_t	= unordered_map< VkShaderModule, ShaderTrace* >;
-	vector<uint>			_tempBuf;
+	using Debuggable_t	= unordered_map< VkShaderModule, CompiledShader* >;
 	Debuggable_t			_debuggableShaders;
 	
 	VulkanDeviceFnTable		_deviceFnTable;
+
+	SpvCompilerFn			_compilerFn;
 	
 public:
 	enum class EHandleType
@@ -107,10 +109,10 @@ public:
 	
 	bool  Compile (OUT VkShaderModule&		shaderModule,
 				   vector<const char *>		source,
-				   EShLanguage				shaderType,
-				   ETraceMode				mode				= ETraceMode::None,
+				   SPV_COMP_SHADER_TYPE		shaderType,
+				   SPV_COMP_DEBUG_MODE		mode				= SPV_COMP_DEBUG_MODE_NONE,
 				   uint						dbgBufferSetIndex	= ~0u,
-				   glslang::EShTargetLanguageVersion	spvVersion	= glslang::EShTargetSpv_1_3);
+				   SPV_COMP_VERSION			version				= SPV_COMP_VERSION_VULKAN_1_1);
 	
 	bool  TestDebugTraceOutput (vector<VkShaderModule> modules, string referenceFile);
 
@@ -134,14 +136,6 @@ private:
 	void  _ValidateDeviceExtensions (INOUT vector<const char*> &ext) const;
 
 	bool  _GetDebugOutput (VkShaderModule shaderModule, const void *ptr, VkDeviceSize maxSize, OUT vector<string> &result) const;
-	
-	bool  _Compile (OUT vector<uint>&		spirvData,
-				    OUT ShaderTrace*		dbgInfo,
-				    uint					dbgBufferSetIndex,
-				    vector<const char *>	source,
-				    EShLanguage				shaderType,
-				    ETraceMode				mode,
-				    glslang::EShTargetLanguageVersion	spvVersion);
 
 	VKAPI_ATTR static VkBool32 VKAPI_CALL
 		_DebugUtilsCallback (VkDebugUtilsMessageSeverityFlagBitsEXT			messageSeverity,

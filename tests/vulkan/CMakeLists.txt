@@ -8,6 +8,9 @@ set_property( TARGET "Tests.Vulkan" PROPERTY FOLDER "" )
 target_link_libraries( "Tests.Vulkan" PUBLIC "ShaderTrace" )
 target_link_libraries( "Tests.Vulkan" PUBLIC "Vulkan-lib" )
 
+add_dependencies( "Tests.Vulkan" "SpvCompiler" )
+target_include_directories( "Tests.Vulkan" PUBLIC "../../spv_compiler/include" )
+
 if (FALSE)
 	target_link_libraries( "Tests.Vulkan" PUBLIC "SPIRV-Cross-lib" )
 	target_compile_definitions( "Tests.Vulkan" PUBLIC ENABLE_SPIRV_CROSS )

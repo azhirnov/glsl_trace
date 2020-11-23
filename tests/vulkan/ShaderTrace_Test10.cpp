@@ -51,7 +51,7 @@ void main ()
 		gl_PrimitiveCountNV = 3;
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT meshShader, {mesh_shader_source}, EShLangMeshNV, ETraceMode::DebugTrace, 0 ));
+		CHECK_ERR( vulkan.Compile( OUT meshShader, {mesh_shader_source}, SPV_COMP_SHADER_TYPE_MESH, SPV_COMP_DEBUG_MODE_TRACE, 0 ));
 	}
 
 	// create fragment shader
@@ -68,7 +68,7 @@ void main ()
 	out_Color = Input.color;
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, EShLangFragment ));
+		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, SPV_COMP_SHADER_TYPE_FRAGMENT ));
 	}
 	return true;
 }

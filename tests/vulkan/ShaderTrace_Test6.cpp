@@ -19,7 +19,7 @@ void main()
 	gl_Position = vec4( g_Positions[gl_VertexIndex], float(gl_VertexIndex) * 0.1f, 1.0f );
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT vertShader, {vert_shader_source}, EShLangVertex ));
+		CHECK_ERR( vulkan.Compile( OUT vertShader, {vert_shader_source}, SPV_COMP_SHADER_TYPE_VERTEX ));
 	}
 
 	// create geometry shader
@@ -63,7 +63,7 @@ void main ()
 }
 )#";
 
-		CHECK_ERR( vulkan.Compile( OUT geomShader, {geom_shader_source}, EShLangGeometry, ETraceMode::DebugTrace, 0 ));
+		CHECK_ERR( vulkan.Compile( OUT geomShader, {geom_shader_source}, SPV_COMP_SHADER_TYPE_GEOMETRY, SPV_COMP_DEBUG_MODE_TRACE, 0 ));
 	}
 
 	// create fragment shader
@@ -77,7 +77,7 @@ void main ()
 	out_Color = in_Color;
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, EShLangFragment ));
+		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, SPV_COMP_SHADER_TYPE_FRAGMENT ));
 	}
 	return true;
 }

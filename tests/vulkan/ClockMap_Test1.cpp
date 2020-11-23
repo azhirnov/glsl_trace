@@ -22,7 +22,7 @@ void main()
 	gl_Position	= vec4( g_Positions[gl_VertexIndex], 0.0f, 1.0f );
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT vertShader, {vert_shader_source}, EShLangVertex ));
+		CHECK_ERR( vulkan.Compile( OUT vertShader, {vert_shader_source}, SPV_COMP_SHADER_TYPE_VERTEX ));
 	}
 
 	// create fragment shader
@@ -93,7 +93,7 @@ void main ()
 	out_Color = Generator();
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, EShLangFragment, ETraceMode::TimeMap, 0 ));
+		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, SPV_COMP_SHADER_TYPE_FRAGMENT, SPV_COMP_DEBUG_MODE_CLOCK_HEATMAP, 0 ));
 	}
 	return true;
 }

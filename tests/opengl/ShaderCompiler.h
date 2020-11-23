@@ -10,12 +10,6 @@
 #include <string>
 #include <vector>
 
-enum class ETraceMode
-{
-	None,
-	DebugTrace,
-	Performance,
-};
 
 static bool  enableShaderSubgroupClock = false;
 static bool  enableShaderDeviceClock   = false;

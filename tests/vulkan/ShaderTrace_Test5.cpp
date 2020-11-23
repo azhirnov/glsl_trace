@@ -37,7 +37,7 @@ void main()
 	out_Color = mix(vec4(1.0, 0.3, 0.0, 0.8), vec4(0.6, 0.9, 0.1, 1.0), float(gl_VertexIndex) / float(g_Positions.length()));
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT vertShader, {vert_shader_source}, EShLangVertex, ETraceMode::DebugTrace, 0 ));
+		CHECK_ERR( vulkan.Compile( OUT vertShader, {vert_shader_source}, SPV_COMP_SHADER_TYPE_VERTEX, SPV_COMP_DEBUG_MODE_TRACE, 0 ));
 	}
 
 	// create fragment shader
@@ -50,7 +50,7 @@ void main ()
 	out_Color = gl_FragCoord;
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, EShLangFragment ));
+		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, SPV_COMP_SHADER_TYPE_FRAGMENT ));
 	}
 	return true;
 }

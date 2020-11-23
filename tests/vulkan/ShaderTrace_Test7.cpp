@@ -24,7 +24,7 @@ void main()
 	out_Level = float(gl_VertexIndex) * 2.5f;
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT vertShader, {vert_shader_source}, EShLangVertex ));
+		CHECK_ERR( vulkan.Compile( OUT vertShader, {vert_shader_source}, SPV_COMP_SHADER_TYPE_VERTEX ));
 	}
 	
 	// create tessellation control shader
@@ -53,7 +53,7 @@ void main ()
 	out_Level[I] = in_Level[I];
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT tessContShader, {cont_shader_source}, EShLangTessControl, ETraceMode::DebugTrace, 0 ));
+		CHECK_ERR( vulkan.Compile( OUT tessContShader, {cont_shader_source}, SPV_COMP_SHADER_TYPE_TESS_CONTROL, SPV_COMP_DEBUG_MODE_TRACE, 0 ));
 	}
 	
 	// create fragment shader
@@ -76,7 +76,7 @@ void main ()
 	out_Color   = vec4( in_Level[0], in_Level[1], in_Level[2], 1.0f );
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT tessEvalShader, {eval_shader_source}, EShLangTessEvaluation ));
+		CHECK_ERR( vulkan.Compile( OUT tessEvalShader, {eval_shader_source}, SPV_COMP_SHADER_TYPE_TESS_EVALUATION ));
 	}
 
 	// create fragment shader
@@ -90,7 +90,7 @@ void main ()
 	out_Color = in_Color;
 })#";
 
-		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, EShLangFragment ));
+		CHECK_ERR( vulkan.Compile( OUT fragShader, {frag_shader_source}, SPV_COMP_SHADER_TYPE_FRAGMENT ));
 	}
 	return true;
 }

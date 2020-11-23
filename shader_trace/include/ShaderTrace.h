@@ -102,7 +102,7 @@ public:
 	bool ParseShaderTrace (const void *ptr, uint64_t maxSize, std::vector<std::string> &result) const;
 
 	// Source code required for 'ParseShaderTrace' function.
-	void SetSource (const char* const* sources, const size_t *lengths, size_t count);
+	void SetSource (const char* const* sources, const int *lengths, size_t count);
 	void SetSource (const char* source, size_t length);
 	void IncludeSource (const char* filename, const char* source, size_t length);	// if used '#include'
 	void GetSource (std::string &result) const;
