@@ -104,7 +104,7 @@ no source
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {0.847078}
+//> f: float {0.847079}
 //  k: float {0.593750}
 //  j: int {6}
 //  cos(): float {0.952161}
@@ -112,7 +112,7 @@ no source
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {0.847078}
+//  f: float {0.847079}
 18. if (f > 15.7f) {
 
 //> j: int {7}
@@ -154,7 +154,7 @@ no source
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {0.346904}
+//> f: float {0.346905}
 //  k: float {0.593750}
 //  j: int {8}
 //  cos(): float {-0.674116}
@@ -162,7 +162,7 @@ no source
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {0.346904}
+//  f: float {0.346905}
 18. if (f > 15.7f) {
 
 //> j: int {9}
@@ -179,7 +179,7 @@ no source
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-0.836006}
+//> f: float {-0.836005}
 //  k: float {0.593750}
 //  j: int {9}
 //  cos(): float {-0.985758}
@@ -187,7 +187,7 @@ no source
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-0.836006}
+//  f: float {-0.836005}
 18. if (f > 15.7f) {
 
 //> j: int {10}
@@ -198,17 +198,17 @@ no source
 //  j: int {10}
 15. for (int j = i; j < 10; ++j) {
 
-//> fract(): float {0.757744}
+//> fract(): float {0.757745}
 //  k: float {0.593750}
-//  f: float {-0.836006}
+//  f: float {-0.836005}
 23. return fract(f + k);
 
-//> c0: float {0.757744}
+//> c0: float {0.757745}
 //  in_Position: float4 {0.062500, 0.062500, 0.010625, 1.000000}
 29. c0 = Fn1( 3, in_Texcoord.x + in_Position.y, c1.x );
 
-//> out_Color: float2 {0.000000, 11.757744}
-//  c0: float {0.757744}
+//> out_Color: float2 {0.000000, 11.757745}
+//  c0: float {0.757745}
 30. out_Color[1] = c0 + float(c1.x);
 
 //> (out): void
@@ -322,7 +322,7 @@ no source
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {0.847078}
+//> f: float {0.847079}
 //  k: float {0.593750}
 //  j: int {6}
 //  cos(): float {0.952161}
@@ -330,7 +330,7 @@ no source
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {0.847078}
+//  f: float {0.847079}
 18. if (f > 15.7f) {
 
 //> j: int {7}
@@ -372,7 +372,7 @@ no source
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {0.346904}
+//> f: float {0.346905}
 //  k: float {0.593750}
 //  j: int {8}
 //  cos(): float {-0.674116}
@@ -380,7 +380,7 @@ no source
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {0.346904}
+//  f: float {0.346905}
 18. if (f > 15.7f) {
 
 //> j: int {9}
@@ -397,7 +397,7 @@ no source
 16. *
 17. 				cos(float(j) + k);
 
-//> f: float {-0.836006}
+//> f: float {-0.836005}
 //  k: float {0.593750}
 //  j: int {9}
 //  cos(): float {-0.985758}
@@ -405,7 +405,7 @@ no source
 17. 				cos(float(j) + k);
 
 //> (out): bool {false}
-//  f: float {-0.836006}
+//  f: float {-0.836005}
 18. if (f > 15.7f) {
 
 //> j: int {10}
@@ -416,17 +416,17 @@ no source
 //  j: int {10}
 15. for (int j = i; j < 10; ++j) {
 
-//> fract(): float {0.757744}
+//> fract(): float {0.757745}
 //  k: float {0.593750}
-//  f: float {-0.836006}
+//  f: float {-0.836005}
 23. return fract(f + k);
 
-//> c0: float {0.757744}
+//> c0: float {0.757745}
 //  in_Position: float4 {0.062500, 0.062500, 0.028403, 1.000000}
 29. c0 = Fn1( 3, in_Texcoord.x + in_Position.y, c1.x );
 
-//> out_Color: float2 {0.000000, 11.757744}
-//  c0: float {0.757744}
+//> out_Color: float2 {0.000000, 11.757745}
+//  c0: float {0.757745}
 30. out_Color[1] = c0 + float(c1.x);
 
 //> (out): void

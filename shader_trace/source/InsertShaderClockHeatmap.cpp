@@ -963,10 +963,10 @@ static bool  InsertShaderTimeMeasurement (TIntermNode* root, DebugInfo &dbgInfo)
 
 /*
 =================================================
-	InsertShaderClockMap
+	InsertShaderClockHeatmap
 =================================================
 */
-bool  ShaderTrace::InsertShaderClockMap (glslang::TIntermediate &intermediate, uint32_t descSetIndex)
+bool  ShaderTrace::InsertShaderClockHeatmap (glslang::TIntermediate &intermediate, uint32_t descSetIndex)
 {
 	intermediate.addRequestedExtension( "GL_EXT_shader_realtime_clock" );
 

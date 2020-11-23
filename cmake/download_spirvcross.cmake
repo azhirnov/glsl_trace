@@ -14,7 +14,7 @@ if (TRUE)
 
 	# select version
 	if (${EXTERNALS_USE_STABLE_VERSIONS})
-		set( SPIRVCROSS_TAG "2020-04-03" )
+		set( SPIRVCROSS_TAG "2020-09-17" )
 	else ()
 		set( SPIRVCROSS_TAG "master" )
 	endif ()

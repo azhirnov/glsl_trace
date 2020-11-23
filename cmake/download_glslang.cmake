@@ -49,10 +49,9 @@ if (TRUE)
 	endif ()
 
 	if (${EXTERNALS_USE_STABLE_VERSIONS})
-		# stable release April 27, 2020
-		set( GLSLANG_TAG "8.13.3743" )
-		set( SPIRV_TOOLS_TAG "v2020.3" )
-		set( SPIRV_HEADERS_TAG "1.5.3" )
+		set( GLSLANG_TAG "10-11.0.0" )
+		set( SPIRV_TOOLS_TAG "v2020.4" )
+		set( SPIRV_HEADERS_TAG "1.5.4" )
 	else ()
 		set( GLSLANG_TAG "master" )
 		set( SPIRV_TOOLS_TAG "master" )
@@ -191,7 +190,7 @@ if (TRUE)
 	endif ()
 
 	# glslang libraries
-	set( GLSLANG_LIBNAMES "SPIRV" "glslang" "OSDependent" )
+	set( GLSLANG_LIBNAMES "SPIRV" "glslang" "OSDependent" "MachineIndependent" "GenericCodeGen" )
 
 	if (${ENABLE_HLSL})
 		set( GLSLANG_DEFINITIONS "${GLSLANG_DEFINITIONS}" "ENABLE_HLSL" )

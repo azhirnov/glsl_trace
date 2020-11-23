@@ -1,7 +1,9 @@
+// Copyright (c) 2018-2020,  Zhirnov Andrey. For more information see 'LICENSE'
 
 #ifdef VKLOADER_STAGE_DECLFNPOINTER
 	extern PFN_vkCreateDevice  _var_vkCreateDevice;
 	extern PFN_vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR  _var_vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR;
+	extern PFN_vkGetPhysicalDeviceFragmentShadingRatesKHR  _var_vkGetPhysicalDeviceFragmentShadingRatesKHR;
 	extern PFN_vkCreateDisplayPlaneSurfaceKHR  _var_vkCreateDisplayPlaneSurfaceKHR;
 	extern PFN_vkGetPhysicalDeviceExternalFencePropertiesKHR  _var_vkGetPhysicalDeviceExternalFencePropertiesKHR;
 	extern PFN_vkGetPhysicalDeviceImageFormatProperties2KHR  _var_vkGetPhysicalDeviceImageFormatProperties2KHR;
@@ -15,7 +17,6 @@
 	extern PFN_vkGetPhysicalDeviceProperties2KHR  _var_vkGetPhysicalDeviceProperties2KHR;
 	extern PFN_vkGetPhysicalDeviceSurfaceFormats2KHR  _var_vkGetPhysicalDeviceSurfaceFormats2KHR;
 	extern PFN_vkDebugReportMessageEXT  _var_vkDebugReportMessageEXT;
-	extern PFN_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX  _var_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX;
 	extern PFN_vkGetDisplayPlaneCapabilitiesKHR  _var_vkGetDisplayPlaneCapabilitiesKHR;
 	extern PFN_vkGetPhysicalDeviceSurfaceSupportKHR  _var_vkGetPhysicalDeviceSurfaceSupportKHR;
 	extern PFN_vkGetPhysicalDeviceDisplayPlaneProperties2KHR  _var_vkGetPhysicalDeviceDisplayPlaneProperties2KHR;
@@ -114,6 +115,7 @@
 #ifdef VKLOADER_STAGE_FNPOINTER
 	PFN_vkCreateDevice  _var_vkCreateDevice = nullptr;
 	PFN_vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR  _var_vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR = nullptr;
+	PFN_vkGetPhysicalDeviceFragmentShadingRatesKHR  _var_vkGetPhysicalDeviceFragmentShadingRatesKHR = nullptr;
 	PFN_vkCreateDisplayPlaneSurfaceKHR  _var_vkCreateDisplayPlaneSurfaceKHR = nullptr;
 	PFN_vkGetPhysicalDeviceExternalFencePropertiesKHR  _var_vkGetPhysicalDeviceExternalFencePropertiesKHR = nullptr;
 	PFN_vkGetPhysicalDeviceImageFormatProperties2KHR  _var_vkGetPhysicalDeviceImageFormatProperties2KHR = nullptr;
@@ -127,7 +129,6 @@
 	PFN_vkGetPhysicalDeviceProperties2KHR  _var_vkGetPhysicalDeviceProperties2KHR = nullptr;
 	PFN_vkGetPhysicalDeviceSurfaceFormats2KHR  _var_vkGetPhysicalDeviceSurfaceFormats2KHR = nullptr;
 	PFN_vkDebugReportMessageEXT  _var_vkDebugReportMessageEXT = nullptr;
-	PFN_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX  _var_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX = nullptr;
 	PFN_vkGetDisplayPlaneCapabilitiesKHR  _var_vkGetDisplayPlaneCapabilitiesKHR = nullptr;
 	PFN_vkGetPhysicalDeviceSurfaceSupportKHR  _var_vkGetPhysicalDeviceSurfaceSupportKHR = nullptr;
 	PFN_vkGetPhysicalDeviceDisplayPlaneProperties2KHR  _var_vkGetPhysicalDeviceDisplayPlaneProperties2KHR = nullptr;
@@ -226,6 +227,7 @@
 #ifdef VKLOADER_STAGE_INLINEFN
 	ND_ VKAPI_ATTR inline VkResult vkCreateDevice (VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo * pCreateInfo, const VkAllocationCallbacks * pAllocator, VkDevice * pDevice)								{ return _var_vkCreateDevice( physicalDevice, pCreateInfo, pAllocator, pDevice ); }
 		VKAPI_ATTR inline void vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR (VkPhysicalDevice physicalDevice, const VkQueryPoolPerformanceCreateInfoKHR * pPerformanceQueryCreateInfo, uint32_t * pNumPasses)								{ return _var_vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR( physicalDevice, pPerformanceQueryCreateInfo, pNumPasses ); }
+	ND_ VKAPI_ATTR inline VkResult vkGetPhysicalDeviceFragmentShadingRatesKHR (VkPhysicalDevice physicalDevice, uint32_t * pFragmentShadingRateCount, VkPhysicalDeviceFragmentShadingRateKHR * pFragmentShadingRates)								{ return _var_vkGetPhysicalDeviceFragmentShadingRatesKHR( physicalDevice, pFragmentShadingRateCount, pFragmentShadingRates ); }
 	ND_ VKAPI_ATTR inline VkResult vkCreateDisplayPlaneSurfaceKHR (VkInstance instance, const VkDisplaySurfaceCreateInfoKHR * pCreateInfo, const VkAllocationCallbacks * pAllocator, VkSurfaceKHR * pSurface)								{ return _var_vkCreateDisplayPlaneSurfaceKHR( instance, pCreateInfo, pAllocator, pSurface ); }
 		VKAPI_ATTR inline void vkGetPhysicalDeviceExternalFencePropertiesKHR (VkPhysicalDevice physicalDevice, const VkPhysicalDeviceExternalFenceInfo * pExternalFenceInfo, VkExternalFenceProperties * pExternalFenceProperties)								{ return _var_vkGetPhysicalDeviceExternalFencePropertiesKHR( physicalDevice, pExternalFenceInfo, pExternalFenceProperties ); }
 	ND_ VKAPI_ATTR inline VkResult vkGetPhysicalDeviceImageFormatProperties2KHR (VkPhysicalDevice physicalDevice, const VkPhysicalDeviceImageFormatInfo2 * pImageFormatInfo, VkImageFormatProperties2 * pImageFormatProperties)								{ return _var_vkGetPhysicalDeviceImageFormatProperties2KHR( physicalDevice, pImageFormatInfo, pImageFormatProperties ); }
@@ -239,7 +241,6 @@
 		VKAPI_ATTR inline void vkGetPhysicalDeviceProperties2KHR (VkPhysicalDevice physicalDevice, VkPhysicalDeviceProperties2 * pProperties)								{ return _var_vkGetPhysicalDeviceProperties2KHR( physicalDevice, pProperties ); }
 	ND_ VKAPI_ATTR inline VkResult vkGetPhysicalDeviceSurfaceFormats2KHR (VkPhysicalDevice physicalDevice, const VkPhysicalDeviceSurfaceInfo2KHR * pSurfaceInfo, uint32_t * pSurfaceFormatCount, VkSurfaceFormat2KHR * pSurfaceFormats)								{ return _var_vkGetPhysicalDeviceSurfaceFormats2KHR( physicalDevice, pSurfaceInfo, pSurfaceFormatCount, pSurfaceFormats ); }
 		VKAPI_ATTR inline void vkDebugReportMessageEXT (VkInstance instance, VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char * pLayerPrefix, const char * pMessage)								{ return _var_vkDebugReportMessageEXT( instance, flags, objectType, object, location, messageCode, pLayerPrefix, pMessage ); }
-		VKAPI_ATTR inline void vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX (VkPhysicalDevice physicalDevice, VkDeviceGeneratedCommandsFeaturesNVX * pFeatures, VkDeviceGeneratedCommandsLimitsNVX * pLimits)								{ return _var_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX( physicalDevice, pFeatures, pLimits ); }
 	ND_ VKAPI_ATTR inline VkResult vkGetDisplayPlaneCapabilitiesKHR (VkPhysicalDevice physicalDevice, VkDisplayModeKHR mode, uint32_t planeIndex, VkDisplayPlaneCapabilitiesKHR * pCapabilities)								{ return _var_vkGetDisplayPlaneCapabilitiesKHR( physicalDevice, mode, planeIndex, pCapabilities ); }
 	ND_ VKAPI_ATTR inline VkResult vkGetPhysicalDeviceSurfaceSupportKHR (VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkBool32 * pSupported)								{ return _var_vkGetPhysicalDeviceSurfaceSupportKHR( physicalDevice, queueFamilyIndex, surface, pSupported ); }
 	ND_ VKAPI_ATTR inline VkResult vkGetPhysicalDeviceDisplayPlaneProperties2KHR (VkPhysicalDevice physicalDevice, uint32_t * pPropertyCount, VkDisplayPlaneProperties2KHR * pProperties)								{ return _var_vkGetPhysicalDeviceDisplayPlaneProperties2KHR( physicalDevice, pPropertyCount, pProperties ); }
@@ -338,6 +339,7 @@
 #ifdef VKLOADER_STAGE_DUMMYFN
 	VKAPI_ATTR VkResult VKAPI_CALL Dummy_vkCreateDevice (VkPhysicalDevice , const VkDeviceCreateInfo * , const VkAllocationCallbacks * , VkDevice * )			{  VK_LOG( "used dummy function 'vkCreateDevice'" );  return VK_RESULT_MAX_ENUM;  }
 	VKAPI_ATTR void VKAPI_CALL Dummy_vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR (VkPhysicalDevice , const VkQueryPoolPerformanceCreateInfoKHR * , uint32_t * )			{  VK_LOG( "used dummy function 'vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR'" );  return;  }
+	VKAPI_ATTR VkResult VKAPI_CALL Dummy_vkGetPhysicalDeviceFragmentShadingRatesKHR (VkPhysicalDevice , uint32_t * , VkPhysicalDeviceFragmentShadingRateKHR * )			{  VK_LOG( "used dummy function 'vkGetPhysicalDeviceFragmentShadingRatesKHR'" );  return VK_RESULT_MAX_ENUM;  }
 	VKAPI_ATTR VkResult VKAPI_CALL Dummy_vkCreateDisplayPlaneSurfaceKHR (VkInstance , const VkDisplaySurfaceCreateInfoKHR * , const VkAllocationCallbacks * , VkSurfaceKHR * )			{  VK_LOG( "used dummy function 'vkCreateDisplayPlaneSurfaceKHR'" );  return VK_RESULT_MAX_ENUM;  }
 	VKAPI_ATTR void VKAPI_CALL Dummy_vkGetPhysicalDeviceExternalFencePropertiesKHR (VkPhysicalDevice , const VkPhysicalDeviceExternalFenceInfo * , VkExternalFenceProperties * )			{  VK_LOG( "used dummy function 'vkGetPhysicalDeviceExternalFencePropertiesKHR'" );  return;  }
 	VKAPI_ATTR VkResult VKAPI_CALL Dummy_vkGetPhysicalDeviceImageFormatProperties2KHR (VkPhysicalDevice , const VkPhysicalDeviceImageFormatInfo2 * , VkImageFormatProperties2 * )			{  VK_LOG( "used dummy function 'vkGetPhysicalDeviceImageFormatProperties2KHR'" );  return VK_RESULT_MAX_ENUM;  }
@@ -351,7 +353,6 @@
 	VKAPI_ATTR void VKAPI_CALL Dummy_vkGetPhysicalDeviceProperties2KHR (VkPhysicalDevice , VkPhysicalDeviceProperties2 * )			{  VK_LOG( "used dummy function 'vkGetPhysicalDeviceProperties2KHR'" );  return;  }
 	VKAPI_ATTR VkResult VKAPI_CALL Dummy_vkGetPhysicalDeviceSurfaceFormats2KHR (VkPhysicalDevice , const VkPhysicalDeviceSurfaceInfo2KHR * , uint32_t * , VkSurfaceFormat2KHR * )			{  VK_LOG( "used dummy function 'vkGetPhysicalDeviceSurfaceFormats2KHR'" );  return VK_RESULT_MAX_ENUM;  }
 	VKAPI_ATTR void VKAPI_CALL Dummy_vkDebugReportMessageEXT (VkInstance , VkDebugReportFlagsEXT , VkDebugReportObjectTypeEXT , uint64_t , size_t , int32_t , const char * , const char * )			{  VK_LOG( "used dummy function 'vkDebugReportMessageEXT'" );  return;  }
-	VKAPI_ATTR void VKAPI_CALL Dummy_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX (VkPhysicalDevice , VkDeviceGeneratedCommandsFeaturesNVX * , VkDeviceGeneratedCommandsLimitsNVX * )			{  VK_LOG( "used dummy function 'vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX'" );  return;  }
 	VKAPI_ATTR VkResult VKAPI_CALL Dummy_vkGetDisplayPlaneCapabilitiesKHR (VkPhysicalDevice , VkDisplayModeKHR , uint32_t , VkDisplayPlaneCapabilitiesKHR * )			{  VK_LOG( "used dummy function 'vkGetDisplayPlaneCapabilitiesKHR'" );  return VK_RESULT_MAX_ENUM;  }
 	VKAPI_ATTR VkResult VKAPI_CALL Dummy_vkGetPhysicalDeviceSurfaceSupportKHR (VkPhysicalDevice , uint32_t , VkSurfaceKHR , VkBool32 * )			{  VK_LOG( "used dummy function 'vkGetPhysicalDeviceSurfaceSupportKHR'" );  return VK_RESULT_MAX_ENUM;  }
 	VKAPI_ATTR VkResult VKAPI_CALL Dummy_vkGetPhysicalDeviceDisplayPlaneProperties2KHR (VkPhysicalDevice , uint32_t * , VkDisplayPlaneProperties2KHR * )			{  VK_LOG( "used dummy function 'vkGetPhysicalDeviceDisplayPlaneProperties2KHR'" );  return VK_RESULT_MAX_ENUM;  }
@@ -450,6 +451,7 @@
 #ifdef VKLOADER_STAGE_GETADDRESS
 	Load( OUT _var_vkCreateDevice, "vkCreateDevice", Dummy_vkCreateDevice );
 	Load( OUT _var_vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR, "vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR", Dummy_vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR );
+	Load( OUT _var_vkGetPhysicalDeviceFragmentShadingRatesKHR, "vkGetPhysicalDeviceFragmentShadingRatesKHR", Dummy_vkGetPhysicalDeviceFragmentShadingRatesKHR );
 	Load( OUT _var_vkCreateDisplayPlaneSurfaceKHR, "vkCreateDisplayPlaneSurfaceKHR", Dummy_vkCreateDisplayPlaneSurfaceKHR );
 	Load( OUT _var_vkGetPhysicalDeviceExternalFencePropertiesKHR, "vkGetPhysicalDeviceExternalFencePropertiesKHR", Dummy_vkGetPhysicalDeviceExternalFencePropertiesKHR );
 	Load( OUT _var_vkGetPhysicalDeviceImageFormatProperties2KHR, "vkGetPhysicalDeviceImageFormatProperties2KHR", Dummy_vkGetPhysicalDeviceImageFormatProperties2KHR );
@@ -463,7 +465,6 @@
 	Load( OUT _var_vkGetPhysicalDeviceProperties2KHR, "vkGetPhysicalDeviceProperties2KHR", Dummy_vkGetPhysicalDeviceProperties2KHR );
 	Load( OUT _var_vkGetPhysicalDeviceSurfaceFormats2KHR, "vkGetPhysicalDeviceSurfaceFormats2KHR", Dummy_vkGetPhysicalDeviceSurfaceFormats2KHR );
 	Load( OUT _var_vkDebugReportMessageEXT, "vkDebugReportMessageEXT", Dummy_vkDebugReportMessageEXT );
-	Load( OUT _var_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX, "vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX", Dummy_vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX );
 	Load( OUT _var_vkGetDisplayPlaneCapabilitiesKHR, "vkGetDisplayPlaneCapabilitiesKHR", Dummy_vkGetDisplayPlaneCapabilitiesKHR );
 	Load( OUT _var_vkGetPhysicalDeviceSurfaceSupportKHR, "vkGetPhysicalDeviceSurfaceSupportKHR", Dummy_vkGetPhysicalDeviceSurfaceSupportKHR );
 	Load( OUT _var_vkGetPhysicalDeviceDisplayPlaneProperties2KHR, "vkGetPhysicalDeviceDisplayPlaneProperties2KHR", Dummy_vkGetPhysicalDeviceDisplayPlaneProperties2KHR );

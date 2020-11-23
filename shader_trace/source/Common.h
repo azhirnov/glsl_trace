@@ -106,7 +106,6 @@ using uint = uint32_t;
 
 
 // glslang includes
-#include "glslang/Include/revision.h"
 #include "glslang/MachineIndependent/localintermediate.h"
 #include "glslang/Include/intermediate.h"
 

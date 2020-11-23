@@ -20,7 +20,7 @@ elseif (EXISTS "${EXTERNALS_PATH}/Vulkan-Headers/include/vulkan/vulkan_core.h")
 endif ()
 
 
-set( VULKAN_HEADERS_TAG "v1.2.132" )
+set( VULKAN_HEADERS_TAG "v1.2.162" )
 
 # download
 if (NOT Vulkan_FOUND AND NOT CMAKE_VERSION VERSION_LESS 3.11.0)

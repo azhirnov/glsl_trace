@@ -96,7 +96,7 @@ public:
 	bool InsertFunctionProfiler (glslang::TIntermediate &, uint32_t descSetIndex, bool shaderSubgroupClock, bool shaderDeviceClock);
 
 	// Insert time measurement into entry function, summarize shader invocation times in storage buffer.
-	bool InsertShaderClockMap (glslang::TIntermediate &, uint32_t descSetIndex);
+	bool InsertShaderClockHeatmap (glslang::TIntermediate &, uint32_t descSetIndex);
 	
 	// Converts binary trace into string.
 	bool ParseShaderTrace (const void *ptr, uint64_t maxSize, std::vector<std::string> &result) const;

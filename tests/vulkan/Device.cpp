@@ -6,13 +6,12 @@
 #include <memory>
 
 // glslang includes
-#include "glslang/Include/revision.h"
 #include "glslang/MachineIndependent/localintermediate.h"
 #include "glslang/Include/intermediate.h"
-#include "SPIRV/doc.h"
-#include "SPIRV/disassemble.h"
-#include "SPIRV/GlslangToSpv.h"
-#include "SPIRV/GLSL.std.450.h"
+#include "glslang/SPIRV/doc.h"
+#include "glslang/SPIRV/disassemble.h"
+#include "glslang/SPIRV/GlslangToSpv.h"
+#include "glslang/SPIRV/GLSL.std.450.h"
 #include "StandAlone/ResourceLimits.cpp"
 using namespace glslang;
 
@@ -102,9 +101,6 @@ bool  Device::_CreateDevice ()
 			#ifdef VK_KHR_get_physical_device_properties2
 				VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
 			#endif
-			#ifdef VK_KHR_get_surface_capabilities2
-				VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME,
-			#endif
 			#ifdef VK_EXT_debug_utils
 				VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
 			#endif
@@ -136,25 +132,6 @@ bool  Device::_CreateDevice ()
 		instance_create_info.ppEnabledLayerNames		= instance_layers.data();
 
 		VK_CHECK( vkCreateInstance( &instance_create_info, nullptr, OUT &instance ));
-
-		/*for (string ext : instance_extensions)
-		{
-			if ( ext == VK_EXT_DEBUG_UTILS_EXTENSION_NAME )
-			{
-				VkDebugUtilsMessengerCreateInfoEXT	info = {};
-				info.sType				= VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-				info.messageSeverity	= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-										  VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-				info.messageType		= VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT	 |
-										  VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT  |
-										  VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-				info.pfnUserCallback	= _DebugUtilsCallback;
-				info.pUserData			= this;
-
-				VK_CHECK( vkCreateDebugUtilsMessengerEXT( instance, &info, nullptr, OUT &_debugUtilsMessenger ));
-				break;
-			}
-		}*/
 
 		VulkanLoader::LoadInstance( instance );
 	}
@@ -521,7 +498,6 @@ bool  Device::CheckErrors (VkResult errCode, const char *vkcall, const char *fun
 		
 	string	msg( "Vulkan error: " );
 
-	BEGIN_ENUM_CHECKS();
 	switch ( errCode )
 	{
 		VK1_CASE_ERR( VK_NOT_READY )
@@ -557,11 +533,9 @@ bool  Device::CheckErrors (VkResult errCode, const char *vkcall, const char *fun
 		VK1_CASE_ERR( VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT )
 		VK1_CASE_ERR( VK_ERROR_UNKNOWN )
 		case VK_SUCCESS :
-		case VK_RESULT_RANGE_SIZE :
 		case VK_RESULT_MAX_ENUM :
 		default :	msg = msg + "unknown (" + to_string(int(errCode)) + ')';  break;
 	}
-	END_ENUM_CHECKS();
 	#undef VK1_CASE_ERR
 		
 	msg = msg + ", in " + vkcall + ", function: " + func;
@@ -824,7 +798,7 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 				
 			case ETraceMode::TimeMap :
 				CHECK_ERR( shaderClockFeat.shaderDeviceClock );
-				CHECK_ERR( dbgInfo->InsertShaderClockMap( INOUT *intermediate, dbgBufferSetIndex ));
+				CHECK_ERR( dbgInfo->InsertShaderClockHeatmap( INOUT *intermediate, dbgBufferSetIndex ));
 				break;
 
 			case ETraceMode::None :
@@ -1436,7 +1410,7 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 		MemInfo					host;
 		MemInfo					dev;
 		BindMemCallbacks_t		onBind;
-		DrawCallbacks_t			onDraw;
+		DrawCallbacks_t			onUpdate;
 	};
 
 	static const float3		vertices[] = {
@@ -1564,7 +1538,7 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 			return true;
 		});
 		
-		res.onDraw.push_back( [this, bottomLevelAS, geometry, &scratch_buffer] (VkCommandBuffer cmd)
+		res.onUpdate.push_back( [this, bottomLevelAS, geometry, &scratch_buffer] (VkCommandBuffer cmd)
 		{
 			VkAccelerationStructureInfoNV	info = {};
 			info.sType			= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
@@ -1653,7 +1627,7 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 			return true;
 		});
 
-		res.onDraw.push_back( [this, topLevelAS, instance_buffer, &scratch_buffer] (VkCommandBuffer cmd)
+		res.onUpdate.push_back( [this, topLevelAS, instance_buffer, &scratch_buffer] (VkCommandBuffer cmd)
 		{
 			// write-read memory barrier for 'bottomLevelAS'
 			// execution barrier for 'scratchBuffer'
@@ -1722,10 +1696,13 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 
 	// create shader binding table
 	{
+		const uint	stride		= rayTracingProps.shaderGroupHandleSize;
+		const uint	alignment	= std::max( stride, rayTracingProps.shaderGroupBaseAlignment );
+
 		VkBufferCreateInfo	info = {};
 		info.sType			= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		info.flags			= 0;
-		info.size			= numGroups * rayTracingProps.shaderGroupHandleSize;
+		info.size			= numGroups * alignment;
 		info.usage			= VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
 		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
@@ -1745,12 +1722,13 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 			return true;
 		});
 
-		res.onDraw.push_back( [this, shaderBindingTable, rtPipeline, numGroups, size = info.size] (VkCommandBuffer cmd)
+		res.onUpdate.push_back( [this, shaderBindingTable, rtPipeline, numGroups, alignment, size = info.size] (VkCommandBuffer cmd)
 		{
 			vector<uint8_t>	handles;  handles.resize(size);
 
-			VK_CALL( vkGetRayTracingShaderGroupHandlesNV( device, rtPipeline, 0, numGroups, handles.size(), OUT handles.data() ));
-		
+			for (uint i = 0; i < numGroups; ++i) {
+				VK_CALL( vkGetRayTracingShaderGroupHandlesNV( device, rtPipeline, i, 1, rayTracingProps.shaderGroupHandleSize, OUT handles.data() + alignment * i ));
+			}	
 			vkCmdUpdateBuffer( cmd, shaderBindingTable, 0, handles.size(), handles.data() );
 		});
 	}
@@ -1791,7 +1769,7 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 		begin_info.flags	= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 		VK_CALL( vkBeginCommandBuffer( cmdBuffer, &begin_info ));
 
-		for (auto& cb : res.onDraw) {
+		for (auto& cb : res.onUpdate) {
 			cb( cmdBuffer );
 		}
 

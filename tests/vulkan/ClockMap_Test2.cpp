@@ -357,7 +357,7 @@ extern bool ClockMap_Test2 (Device& vulkan)
 		vulkan.vkCmdBindDescriptorSets( vulkan.cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, ppln_layout, 0, 1, &desc_set1, 0, nullptr );
 		vulkan.vkCmdBindDescriptorSets( vulkan.cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, ppln_layout, 1, 1, &desc_set2, 0, nullptr );
 
-		VkDeviceSize	stride = vulkan.rayTracingProps.shaderGroupHandleSize;
+		VkDeviceSize	stride = vulkan.rayTracingProps.shaderGroupBaseAlignment;
 
 		vulkan.vkCmdTraceRaysNV( vulkan.cmdBuffer, 
 								 shader_binding, RAYGEN_SHADER * stride,
@@ -406,7 +406,7 @@ extern bool ClockMap_Test2 (Device& vulkan)
 		VK_CHECK( vulkan.vkQueueWaitIdle( vulkan.queue ));
 	}
 
-	CHECK_ERR( vulkan.CheckTimeMap( {miss_shader, hit_shader}, 1.0e-10f ));
+	CHECK_ERR( vulkan.CheckTimeMap( {miss_shader, hit_shader}, 0.5f ));
 	
 	vulkan.FreeTempHandles();
 
