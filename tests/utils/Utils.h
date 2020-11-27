@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <iostream>
-#include "include/ShaderTrace.h"
+#include "ShaderTrace.h"
 
 static const size_t  BufferSize = 8 << 20;
 

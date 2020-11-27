@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "include/ShaderTrace.h"
-#include "source/Common.h"
+#include "ShaderTrace.h"
+#include "../source/Common.h"
 
 #include "GL/glew.h"
 
@@ -11,8 +11,8 @@
 #include <vector>
 
 
-static bool  enableShaderSubgroupClock = false;
-static bool  enableShaderDeviceClock   = false;
+extern bool  enableShaderSubgroupClock;
+extern bool  enableShaderDeviceClock;
 
 bool CompileGLSL (OUT std::string&				glslResult,
 				  OUT ShaderTrace*				dbgInfo,

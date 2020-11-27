@@ -1,7 +1,7 @@
 // Copyright (c) 2018-2020,  Zhirnov Andrey. For more information see 'LICENSE'
 
 #include "Utils.h"
-#include "source/Common.h"
+#include "../source/Common.h"
 
 // Warning:
 // Before testing on new GPU set 'UpdateReferences' to 'true', run tests,
