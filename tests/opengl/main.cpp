@@ -2,7 +2,7 @@
 
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
-#include "source/Common.h"
+#include "../source/Common.h"
 #include "ShaderCompiler.h"
 #include <iostream>
 

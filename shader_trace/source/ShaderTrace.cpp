@@ -53,7 +53,9 @@ void ShaderTrace::SetSource (const char* const* sources, const size_t *lengths, 
 	_sources.clear();
 	_sources.reserve( count );
 
-	for (size_t i = 0; i < count; ++i) {
+	for (size_t i = 0; i < count; ++i)
+	{
+		ASSERT( sources[i] != nullptr );
 		_AppendSource( sources[i], (lengths ? lengths[i] : strlen(sources[i])) );
 	}
 }

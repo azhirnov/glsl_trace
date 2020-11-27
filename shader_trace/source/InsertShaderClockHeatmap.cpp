@@ -983,6 +983,7 @@ bool  ShaderTrace::InsertShaderClockHeatmap (glslang::TIntermediate &intermediat
 	CreateShaderBuiltinSymbols( root, dbg_info );
 
 	InsertShaderTimeMeasurement( root, dbg_info );
-
+	
+	ValidateInterm( intermediate );
 	return true;
 }
