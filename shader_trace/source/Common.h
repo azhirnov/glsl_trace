@@ -111,6 +111,8 @@ using uint = uint32_t;
 
 ND_ std::string  GetFunctionName (glslang::TIntermOperator *op);
 
+bool ValidateInterm (glslang::TIntermediate &intermediate);
+
 static const char*	RT_LaunchID[]			= { "gl_LaunchID",				"gl_LaunchIDNV" };
 static const char*	RT_LaunchSize[]			= { "gl_LaunchSize",			"gl_LaunchSizeNV" };
 static const char*	RT_InstanceCustomIndex[]= { "gl_InstanceCustomIndex",	"gl_InstanceCustomIndexNV" };

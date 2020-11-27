@@ -17,7 +17,7 @@ no source
 //  uv: float2 {0.472441, 0.314961}
 11. origin = vec3(uv.x, 1.0f - uv.y, -1.0f);
 
-//> trace(): void
+//> traceNV(): void
 //  origin: float3 {0.472441, 0.685039, -1.000000}
 14. un_RtScene, /*rayFlags*/gl_RayFlagsNoneNV, /*cullMask*/0xFF,
 15. 			  /*sbtRecordOffset*/0, /*sbtRecordStride*/0, /*missIndex*/0,

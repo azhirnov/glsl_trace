@@ -39,7 +39,7 @@ if (TRUE)
 	endif ()
 	
 	set( ENABLE_HLSL OFF CACHE BOOL "glslang option" )
-	set( ENABLE_OPT OFF CACHE BOOL "glslang option" )
+	set( ENABLE_OPT ON CACHE BOOL "glslang option" )
 	mark_as_advanced( ENABLE_HLSL ENABLE_OPT )
 
 	# SPIRV-Tools require Python 3 for building

@@ -21,6 +21,11 @@
 #include "glslang/SPIRV/GLSL.std.450.h"
 #include "StandAlone/ResourceLimits.cpp"
 
+#ifdef ENABLE_OPT
+#	include "spirv-tools/optimizer.hpp"
+#	include "spirv-tools/libspirv.h"
+#endif
+
 
 struct CompiledShader
 {
@@ -91,12 +96,13 @@ namespace
 	private:
 		IncludeResults_t		_results;
 		IncludedFiles_t			_includedFiles;
-		vector<string> const&	_directories;
+		const char* const*		_includeDirs		= nullptr;
+		uint32_t				_includeDirsCount	= 0;
 
 
 	// methods
 	public:
-		explicit ShaderIncluder (const vector<string> &dirs) : _directories{dirs} {}
+		ShaderIncluder (const char* const* includeDirs, uint32_t count) : _includeDirs{includeDirs}, _includeDirsCount{count} {}
 		~ShaderIncluder () override {}
 
 		ND_ IncludedFiles_t const&  GetIncludedFiles () const	{ return _includedFiles; }
@@ -125,11 +131,11 @@ namespace
 */
 	ShaderIncluder::IncludeResult* ShaderIncluder::includeLocal (const char* headerName, const char *, size_t)
 	{
-		assert( _directories.size() );
+		assert( _includeDirsCount > 0 );
 
-		for (auto& folder : _directories)
+		for (uint32_t i = 0; i <= _includeDirsCount; ++i)
 		{
-			FS::path	fpath = FS::path( folder ) / headerName;
+			FS::path	fpath = (i < _includeDirsCount ? FS::path{ _includeDirs[i] } : FS::path{}) / headerName;
 
 			if ( not FS::exists( fpath ))
 				continue;
@@ -182,26 +188,7 @@ namespace
 */
 	ND_ static EShLanguage  ConvertShaderType (SPV_COMP_SHADER_TYPE shaderType)
 	{
-		BEGIN_ENUM_CHECKS();
-		switch ( shaderType )
-		{
-			case SPV_COMP_SHADER_TYPE_VERTEX :			return EShLangVertex;
-			case SPV_COMP_SHADER_TYPE_TESS_CONTROL :	return EShLangTessControl;
-			case SPV_COMP_SHADER_TYPE_TESS_EVALUATION :	return EShLangTessEvaluation;
-			case SPV_COMP_SHADER_TYPE_GEOMETRY :		return EShLangGeometry;
-			case SPV_COMP_SHADER_TYPE_FRAGMENT :		return EShLangFragment;
-			case SPV_COMP_SHADER_TYPE_COMPUTE :			return EShLangCompute;
-			case SPV_COMP_SHADER_TYPE_MESH_TASK :		return EShLangTaskNV;
-			case SPV_COMP_SHADER_TYPE_MESH :			return EShLangMeshNV;
-			case SPV_COMP_SHADER_TYPE_RAY_GEN :			return EShLangRayGenNV;
-			case SPV_COMP_SHADER_TYPE_RAY_ANY_HIT :		return EShLangAnyHitNV;
-			case SPV_COMP_SHADER_TYPE_RAY_CLOSEST_HIT :	return EShLangClosestHitNV;
-			case SPV_COMP_SHADER_TYPE_RAY_MISS :		return EShLangMissNV;
-			case SPV_COMP_SHADER_TYPE_RAY_INTERSECT :	return EShLangIntersectNV;
-			case SPV_COMP_SHADER_TYPE_RAY_CALLABLE :	return EShLangCallableNV;
-		}
-		END_ENUM_CHECKS();
-		return EShLangCount;
+		return EShLanguage(shaderType);
 	}
 
 /*
@@ -210,7 +197,8 @@ namespace
 =================================================
 */
 	static bool  ParseGLSL (SPV_COMP_SHADER_TYPE shaderType, SPV_COMP_VERSION version, ShaderIncluder &includer,
-							const char* const* shaderSources, const int* shaderSourceLengths, unsigned shaderSourcesCount, const char* entryName,
+							const char* const* shaderSources, const int* shaderSourceLengths, unsigned shaderSourcesCount,
+							const char* entryName, const char* defines, bool autoMapBindings, bool autoMapLocations,
 							const TBuiltInResource &builtinResource,
 							OUT GLSLangResult &glslangData, OUT string &log)
 	{
@@ -222,7 +210,17 @@ namespace
 
 		shader.reset( new TShader( stage ));
 		shader->setStringsWithLengths( shaderSources, shaderSourceLengths, shaderSourcesCount );
-		shader->setEntryPoint( entryName );
+
+		if ( entryName )
+			shader->setEntryPoint( entryName );
+		else
+			shader->setEntryPoint( "main" );
+
+		if ( defines )
+			shader->setPreamble( defines );
+
+		shader->setAutoMapBindings( autoMapBindings );
+		shader->setAutoMapLocations( autoMapLocations );
 		
 		switch ( version )
 		{
@@ -265,6 +263,9 @@ namespace
 			return false;
 		}
 
+		if ( autoMapBindings or autoMapLocations )
+			glslangData.prog.mapIO();
+
 		return true;
 	}
 
@@ -273,22 +274,104 @@ namespace
 	CompileSPIRV
 =================================================
 */
-	bool  CompileSPIRV (const GLSLangResult &glslangData, OUT vector<uint32_t> &spirv, INOUT string &log)
+	bool  CompileSPIRV (const GLSLangResult &glslangData, SPV_COMP_VERSION version, SPV_COMP_OPTIMIZATION opt, OUT vector<uint32_t> &spirv, INOUT string &log)
 	{
 		using namespace glslang;
 
 		const TIntermediate* intermediate = glslangData.prog.getIntermediate( glslangData.shader->getStage() );
 		CHECK_ERR( intermediate );
 
-		SpvOptions				spv_options;
-		spv::SpvBuildLogger		logger;
+		SpvOptions			spv_options;
+		spv::SpvBuildLogger	logger;
 
-		spv_options.generateDebugInfo	= false;
-		spv_options.disableOptimizer	= true;
-		spv_options.optimizeSize		= false;
+		switch ( opt )
+		{
+			case SPV_COMP_OPTIMIZATION_FAST:
+			case SPV_COMP_OPTIMIZATION_STRONG:
+				spv_options.generateDebugInfo	= false;
+				spv_options.disableOptimizer	= false;
+				spv_options.optimizeSize		= false;
+				break;
+
+			case SPV_COMP_OPTIMIZATION_DEBUG:
+				spv_options.generateDebugInfo	= true;
+				spv_options.disableOptimizer	= true;
+				spv_options.optimizeSize		= false;
+				break;
+
+			case SPV_COMP_OPTIMIZATION_NONE:
+			default:
+				spv_options.generateDebugInfo	= false;
+				spv_options.disableOptimizer	= true;
+				spv_options.optimizeSize		= false;
+				break;
+		}
 		
 		GlslangToSpv( *intermediate, OUT spirv, &logger, &spv_options );
 		log += logger.getAllMessages();
+		
+#ifdef ENABLE_OPT
+		if ( opt == SPV_COMP_OPTIMIZATION_STRONG )
+		{
+			spv_target_env target_env = SPV_ENV_VULKAN_1_0;
+			switch ( version )
+			{
+				case SPV_COMP_VERSION_VULKAN_1_0 :			target_env = SPV_ENV_VULKAN_1_0;			break;
+				case SPV_COMP_VERSION_VULKAN_1_1 :			target_env = SPV_ENV_VULKAN_1_1;			break;
+				case SPV_COMP_VERSION_VULKAN_1_1_SPIRV_1_4:	target_env = SPV_ENV_VULKAN_1_1_SPIRV_1_4;	break;
+				case SPV_COMP_VERSION_VULKAN_1_2 :			target_env = SPV_ENV_VULKAN_1_2;			break;
+				default :									return true;
+			}
+
+			spvtools::Optimizer	optimizer{ target_env };
+			optimizer.SetMessageConsumer(
+				[&log] (spv_message_level_t level, const char *source, const spv_position_t &position, const char *message) {
+					switch ( level )
+					{
+						case SPV_MSG_FATAL:
+						case SPV_MSG_INTERNAL_ERROR:
+						case SPV_MSG_ERROR:
+							log += "error: ";
+							break;
+						case SPV_MSG_WARNING:
+							log += "warning: ";
+							break;
+						case SPV_MSG_INFO:
+						case SPV_MSG_DEBUG:
+							log += "info: ";
+							break;
+					}
+
+					if ( source )
+						(log += source) += ":";
+				
+					log += (std::to_string(position.line) + ":" + std::to_string(position.column) + ":" + std::to_string(position.index) + ":");
+					if ( message )
+						(log += " ") += message;
+				});
+
+			optimizer.RegisterLegalizationPasses();
+			optimizer.RegisterSizePasses();
+			optimizer.RegisterPerformancePasses();
+
+			optimizer.RegisterPass(spvtools::CreateCompactIdsPass());
+			optimizer.RegisterPass(spvtools::CreateAggressiveDCEPass());;
+			optimizer.RegisterPass(spvtools::CreateRemoveDuplicatesPass());
+			optimizer.RegisterPass(spvtools::CreateCFGCleanupPass());
+		
+			spvtools::OptimizerOptions spvOptOptions;
+			spvOptOptions.set_run_validator(true);
+			spvOptOptions.set_preserve_bindings(true);
+			spvOptOptions.set_preserve_spec_constants(true);
+
+			vector<uint32_t> temp_spirv;
+			if ( optimizer.Run( spirv.data(), spirv.size(), &temp_spirv, spvOptOptions ))
+			{
+				spirv = std::move(temp_spirv);
+			}
+			return true;
+		}
+#endif
 
 		return true;
 	}
@@ -420,47 +503,44 @@ namespace
 	SpvCompileWithShaderTrace
 =================================================
 */
-	static int SpvCompileWithShaderTrace (const char* const* shaderSources, const int* shaderSourceLengths, unsigned shaderSourcesCount,
-										  const char* entryName,
-										  const char* const* includeDirs, unsigned includeDirsCount,
-										  SPV_COMP_SHADER_TYPE shaderType,
-										  SPV_COMP_VERSION version,
-										  SPV_COMP_DEBUG_MODE mode,
-										  const struct TBuiltInResource* resources,
-										  unsigned DebugDescriptorSetIndex,
-										  struct CompiledShader** outShader)
+	static int SpvCompileWithShaderTrace (const struct ShaderParams *params, struct CompiledShader** outShader)
 	{
-		CHECK_ERR( shaderSources != nullptr );
-		CHECK_ERR( shaderSourceLengths != nullptr );
-		CHECK_ERR( shaderSourcesCount > 0 );
-		CHECK_ERR( entryName != nullptr );
-		CHECK_ERR( (includeDirs != nullptr) == (includeDirsCount > 0) );
 		CHECK_ERR( outShader != nullptr );
+		CHECK_ERR( params != nullptr );
+		CHECK_ERR( params->shaderSources != nullptr );
+		CHECK_ERR( params->shaderSourceLengths != nullptr );
+		CHECK_ERR( params->shaderSourcesCount > 0 );
+		CHECK_ERR( (params->includeDirs != nullptr) == (params->includeDirsCount > 0) );
+		CHECK_ERR( params->shaderType <= SPV_COMP_SHADER_TYPE_MESH );
+		CHECK_ERR( params->version <= SPV_COMP_VERSION_VULKAN_1_2 );
+		CHECK_ERR( params->mode <= SPV_COMP_DEBUG_MODE_CLOCK_HEATMAP );
+		CHECK_ERR( params->optimization <= SPV_COMP_OPTIMIZATION_STRONG );
 
-		vector<string> dirs;
-		dirs.resize( includeDirsCount );
-		for (uint i = 0; i < includeDirsCount; ++i)
-		{
-			CHECK_ERR( includeDirs[i] != nullptr );
-			dirs.push_back( includeDirs[i] );
-		}
+		const TBuiltInResource*	resources = params->resources;
 
 		if ( resources == nullptr )
 			resources = &GetBuiltInResources();
 
 		GLSLangResult	ast_result; // glslang abstract syntax tree
-		ShaderIncluder	includer{ dirs };
+		ShaderIncluder	includer{ params->includeDirs, params->includeDirsCount };
 		auto			shader = std::make_unique<CompiledShader>();
 
-		if ( not ParseGLSL( shaderType, version, includer, shaderSources, shaderSourceLengths, shaderSourcesCount, entryName, *resources, OUT ast_result, OUT shader->log ))
+		if ( not ParseGLSL( params->shaderType, params->version, includer, params->shaderSources,
+						    params->shaderSourceLengths, params->shaderSourcesCount,
+						    params->entryName, params->defines,
+						    params->autoMapBindings, params->autoMapLocations, *resources,
+						    OUT ast_result, OUT shader->log ))
+		{
+			*outShader = shader.release();
 			return 0;
+		}
 	
-		switch ( mode )
+		switch ( params->mode )
 		{
 			case SPV_COMP_DEBUG_MODE_TRACE :
 			case SPV_COMP_DEBUG_MODE_PROFILE :
 			{
-				shader->trace.SetSource( shaderSources, shaderSourceLengths, shaderSourcesCount );
+				shader->trace.SetSource( params->shaderSources, params->shaderSourceLengths, params->shaderSourcesCount );
 
 				for (auto& file : includer.GetIncludedFiles()) {
 					shader->trace.IncludeSource( file.second->headerName.data(), file.second->GetSource().data(), file.second->GetSource().length() );
@@ -472,26 +552,29 @@ namespace
 		EShLanguage				stage	= ast_result.shader->getStage();
 		glslang::TIntermediate&	interm	= *ast_result.prog.getIntermediate( stage );
 
-		switch ( mode )
+		switch ( params->mode )
 		{
 			case SPV_COMP_DEBUG_MODE_TRACE :
-				if ( not shader->trace.InsertTraceRecording( interm, DebugDescriptorSetIndex ))
+				if ( not shader->trace.InsertTraceRecording( interm, params->debugDescriptorSetIndex ))
 					return 0;
 				break;
 
 			case SPV_COMP_DEBUG_MODE_PROFILE :
-				if ( not shader->trace.InsertFunctionProfiler( interm, DebugDescriptorSetIndex, false, true ))
+				if ( not shader->trace.InsertFunctionProfiler( interm, params->debugDescriptorSetIndex, false, true ))
 					return 0;
 				break;
 
 			case SPV_COMP_DEBUG_MODE_CLOCK_HEATMAP :
-				if ( not shader->trace.InsertShaderClockHeatmap( interm, DebugDescriptorSetIndex ))
+				if ( not shader->trace.InsertShaderClockHeatmap( interm, params->debugDescriptorSetIndex ))
 					return 0;
 				break;
 		}
 
-		if ( not CompileSPIRV( ast_result, OUT shader->spirv, INOUT shader->log ))
+		if ( not CompileSPIRV( ast_result, params->version, params->optimization, OUT shader->spirv, INOUT shader->log ))
+		{
+			*outShader = shader.release();
 			return 0;
+		}
 
 		*outShader = shader.release();
 		return 1;

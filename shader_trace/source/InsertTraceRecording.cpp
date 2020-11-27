@@ -3743,19 +3743,19 @@ static bool ProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 		 //		reuse 'gl_LaunchSize'
 		 //		reuse 'gl_PrimitiveID'
 		 node->getName() == RT_InstanceCustomIndex[dbgInfo.IsNVRT()]	or
-		 node->getName() == RT_WorldRayOrigin[dbgInfo.IsNVRT()]		or
-		 node->getName() == RT_WorldRayDirection[dbgInfo.IsNVRT()]	or
+		 node->getName() == RT_WorldRayOrigin[dbgInfo.IsNVRT()]			or
+		 node->getName() == RT_WorldRayDirection[dbgInfo.IsNVRT()]		or
 		 node->getName() == RT_ObjectRayOrigin[dbgInfo.IsNVRT()]		or
-		 node->getName() == RT_ObjectRayDirection[dbgInfo.IsNVRT()]	or
+		 node->getName() == RT_ObjectRayDirection[dbgInfo.IsNVRT()]		or
 		 node->getName() == RT_RayTmin[dbgInfo.IsNVRT()]				or
 		 node->getName() == RT_RayTmax[dbgInfo.IsNVRT()]				or
-		 node->getName() == RT_IncomingRayFlags[dbgInfo.IsNVRT()]	or
-		 node->getName() == RT_ObjectToWorld[dbgInfo.IsNVRT()]		or
-		 node->getName() == RT_WorldToObject[dbgInfo.IsNVRT()]		or
+		 node->getName() == RT_IncomingRayFlags[dbgInfo.IsNVRT()]		or
+		 node->getName() == RT_ObjectToWorld[dbgInfo.IsNVRT()]			or
+		 node->getName() == RT_WorldToObject[dbgInfo.IsNVRT()]			or
 		 // ray intersection & any-hit & closest-hit shaders
-		 node->getName() == RT_HitT[dbgInfo.IsNVRT()]				or
-		 node->getName() == RT_HitKind[dbgInfo.IsNVRT()]				or
-		 node->getName() == RT_InstanceID[dbgInfo.IsNVRT()]			or
+		 node->getName() == RT_HitT[dbgInfo.IsNVRT()]			or
+		 node->getName() == RT_HitKind[dbgInfo.IsNVRT()]		or
+		 node->getName() == RT_InstanceID[dbgInfo.IsNVRT()]		or
 		 // all shaders
 		 node->getName() == "gl_SubgroupInvocationID"	)
 	{
@@ -3802,5 +3802,7 @@ bool ShaderTrace::InsertTraceRecording (TIntermediate &intermediate, uint descSe
 	}
 	dbg_info.Leave( root );
 	dbg_info.PostProcess( OUT _varNames );
+	
+	ValidateInterm( intermediate );
 	return true;
 }

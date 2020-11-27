@@ -48,22 +48,60 @@ enum SPV_COMP_VERSION
 	SPV_COMP_VERSION_VULKAN_1_2				= 100125,
 };
 
+enum SPV_COMP_OPTIMIZATION
+{
+	SPV_COMP_OPTIMIZATION_NONE		= 0,
+	SPV_COMP_OPTIMIZATION_DEBUG		= 1,
+	SPV_COMP_OPTIMIZATION_FAST		= 2,
+	SPV_COMP_OPTIMIZATION_STRONG	= 3,
+};
+
+struct ShaderParams
+{
+	const char* const*				shaderSources;
+	const int*						shaderSourceLengths;
+	unsigned						shaderSourcesCount;
+	const char*						entryName;					// replaced by 'main' if null
+	const char*						defines;					// can be null
+	const char* const*				includeDirs;				// can be null
+	unsigned						includeDirsCount;
+	SPV_COMP_SHADER_TYPE			shaderType;
+	SPV_COMP_VERSION				version;
+	SPV_COMP_DEBUG_MODE				mode;
+	SPV_COMP_OPTIMIZATION			optimization;
+	const struct TBuiltInResource*	resources;					// can be null
+	unsigned						debugDescriptorSetIndex;
+	bool							autoMapBindings;
+	bool							autoMapLocations;
+
+#ifdef __cplusplus
+	ShaderParams() :
+		shaderSources			{nullptr},
+		shaderSourceLengths		{nullptr},
+		shaderSourcesCount		{0},
+		entryName				{nullptr},
+		defines					{nullptr},
+		includeDirs				{nullptr},
+		includeDirsCount		{0},
+		shaderType				{SPV_COMP_SHADER_TYPE(-1)},
+		version					{SPV_COMP_VERSION_VULKAN_1_0},
+		mode					{SPV_COMP_DEBUG_MODE_NONE},
+		optimization			{SPV_COMP_OPTIMIZATION_NONE},
+		resources				{nullptr},
+		debugDescriptorSetIndex	{~0u},
+		autoMapBindings			{false},
+		autoMapLocations		{false}
+	{}
+#endif
+};
+
 struct CompiledShader;
 struct ShaderTraceResult;
 struct TBuiltInResource;
 
 struct SpvCompilerFn
 {
-	int (*Compile) (const char* const* shaderSources, const int* shaderSourceLengths, unsigned shaderSourcesCount,
-					const char* entryName,
-					const char* const* includeDirs, unsigned includeDirsCount,
-					SPV_COMP_SHADER_TYPE shaderType,
-					SPV_COMP_VERSION version,
-					SPV_COMP_DEBUG_MODE mode,
-					const struct TBuiltInResource* resources,
-					unsigned DebugDescriptorSetIndex,
-					struct CompiledShader** outShader);
-
+	int (*Compile) (const struct ShaderParams *params, struct CompiledShader** outShader);
 	int (*TrimShader) (struct CompiledShader* shader);
 	int (*ReleaseShader) (struct CompiledShader* shader);
 	int (*GetShaderLog) (struct CompiledShader* shader, const char** outLog);

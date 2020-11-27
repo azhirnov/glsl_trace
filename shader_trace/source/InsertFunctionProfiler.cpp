@@ -4076,9 +4076,9 @@ static bool  ProcessSymbolNode (TIntermSymbol* node, DebugInfo &dbgInfo)
 		 node->getName() == RT_ObjectToWorld[dbgInfo.IsNVRT()]			or
 		 node->getName() == RT_WorldToObject[dbgInfo.IsNVRT()]			or
 		 // ray intersection & any-hit & closest-hit shaders
-		 node->getName() == RT_HitT[dbgInfo.IsNVRT()]					or
-		 node->getName() == RT_HitKind[dbgInfo.IsNVRT()]				or
-		 node->getName() == RT_InstanceID[dbgInfo.IsNVRT()]				or
+		 node->getName() == RT_HitT[dbgInfo.IsNVRT()]			or
+		 node->getName() == RT_HitKind[dbgInfo.IsNVRT()]		or
+		 node->getName() == RT_InstanceID[dbgInfo.IsNVRT()]		or
 		 // all shaders
 		 node->getName() == "gl_SubgroupInvocationID"	)
 	{
@@ -4133,5 +4133,7 @@ bool  ShaderTrace::InsertFunctionProfiler (TIntermediate &intermediate, uint des
 	
 	CHECK_ERR( dbg_info.UpdateSymbolIDs() );
 	CHECK_ERR( dbg_info.PostProcess( OUT _varNames ));
+	
+	ValidateInterm( intermediate );
 	return true;
 }

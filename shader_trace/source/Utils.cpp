@@ -559,11 +559,15 @@ string  GetFunctionName (TIntermOperator *op)
 		case TOperator::EOpBitCount : return "bitCount";
 		case TOperator::EOpFindLSB : return "findLSB";
 		case TOperator::EOpFindMSB : return "findMSB";
-		case TOperator::EOpTrace : return "trace";
+		case TOperator::EOpTraceKHR : return "traceRays";
+		case TOperator::EOpTraceNV : return "traceNV";
 		case TOperator::EOpReportIntersection : return "reportIntersection";
-		case TOperator::EOpIgnoreIntersection : return "ignoreIntersection";
-		case TOperator::EOpTerminateRay : return "terminateRay";
-		case TOperator::EOpExecuteCallable : return "executeCallable";
+		case TOperator::EOpIgnoreIntersectionKHR : return "ignoreIntersection";
+		case TOperator::EOpIgnoreIntersectionNV : return "ignoreIntersectionNV";
+		case TOperator::EOpTerminateRayKHR : return "terminateRay";
+		case TOperator::EOpTerminateRayNV : return "terminateRayNV";
+		case TOperator::EOpExecuteCallableKHR : return "executeCallable";
+		case TOperator::EOpExecuteCallableNV : return "executeCallableNV";
 		case TOperator::EOpWritePackedPrimitiveIndices4x8NV : return "writePackedPrimitiveIndices4x8NV";
 		// TODO
 		/*EOpRayQueryInitialize,
@@ -594,4 +598,38 @@ string  GetFunctionName (TIntermOperator *op)
 
 	CHECK(false);
 	return "<unknown>";
+}
+
+bool ValidateInterm (TIntermediate &intermediate)
+{
+	TIntermNode*	root = intermediate.getTreeRoot();
+	CHECK_ERR( root );
+
+	TIntermNode*	linker_obj = nullptr;
+
+	if ( auto* aggr = root->getAsAggregate() )
+	{
+		auto& seq = aggr->getSequence();
+
+		for (size_t i = 0; i < seq.size(); ++i)
+		{
+			if ( auto* aggr2 = seq[i]->getAsAggregate(); aggr2 and aggr2->getOp() == TOperator::EOpLinkerObjects )
+			{
+				linker_obj = aggr2;
+				seq.erase( seq.begin() + i );
+				break;
+			}
+		}
+
+		if ( linker_obj )
+		{
+			seq.push_back( linker_obj );
+		}
+	}
+
+	ASSERT( root->getAsAggregate() );
+	ASSERT( root->getAsAggregate()->getSequence().back()->getAsAggregate() );
+	ASSERT( root->getAsAggregate()->getSequence().back()->getAsAggregate()->getOp() == TOperator::EOpLinkerObjects );
+
+	return true;
 }

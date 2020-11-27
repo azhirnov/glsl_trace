@@ -48,7 +48,7 @@ bool  Device::Create ()
 	CHECK_ERR( _CreateDevice() );
 	CHECK_ERR( _CreateResources() );
 
-	HMODULE lib = ::LoadLibraryA( "SpvCompilerd.dll" );
+	HMODULE lib = ::LoadLibraryA( "SpvCompiler.dll" );
 	CHECK_ERR( lib );
 
 	auto* pGetSpvCompilerFn = reinterpret_cast<decltype(GetSpvCompilerFn)*>( ::GetProcAddress( lib, "GetSpvCompilerFn" ));
@@ -715,14 +715,36 @@ bool  Device::Compile  (OUT VkShaderModule &	shaderModule,
 		src_len.push_back( int(strlen(shader_src[i])) );
 	}
 
-	if ( not _compilerFn.Compile( shader_src.data(), src_len.data(), uint(shader_src.size()), "main", nullptr, 0, shaderType, version, mode, nullptr, dbgBufferSetIndex, &shader ))
+	ShaderParams	params;
+	params.shaderSources			= shader_src.data();
+	params.shaderSourceLengths		= src_len.data();
+	params.shaderSourcesCount		= uint(shader_src.size());
+	params.entryName				= "main";
+	params.shaderType				= shaderType;
+	params.version					= version;
+	params.mode						= mode;
+	params.debugDescriptorSetIndex	= dbgBufferSetIndex;
+
+	if ( not _compilerFn.Compile( &params, &shader ))
+	{
+		if ( shader )
+		{
+			const char* log = "";
+			_compilerFn.GetShaderLog( shader, OUT &log );
+			printf( "Shader compilation failed:\n %s\n", log );
+			_compilerFn.ReleaseShader( shader );
+		}
 		return false;
+	}
 
 	VkShaderModuleCreateInfo	info		= {};
 	uint						spirv_size	= 0;
 
 	if ( not _compilerFn.GetShaderBinary( shader, &info.pCode, &spirv_size ))
+	{
+		_compilerFn.ReleaseShader( shader );
 		return false;
+	}
 
 	info.sType		= VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	info.flags		= 0;
