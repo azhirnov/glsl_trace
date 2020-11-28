@@ -43,7 +43,7 @@ void main ()
 	imageStore( un_Output, ivec2(gl_LaunchIDNV), payload );
 }
 )#";
-		CHECK_ERR( vulkan.Compile( OUT rayGenShader, {rt_shader, raygen_shader_source}, EShLangRayGenNV ));	// TODO: pipeline creation failed when used 'TimeMap' in RayGen shader
+		CHECK_ERR( vulkan.Compile( OUT rayGenShader, {rt_shader, raygen_shader_source}, EShLangRayGenNV, ETraceMode::TimeMap, 1 ));
 	}
 
 	// create ray miss shader
@@ -56,7 +56,7 @@ void main ()
 	payload = vec4( 0.412f, 0.796f, 1.0f, 1.0f );
 }
 )#";
-		CHECK_ERR( vulkan.Compile( OUT rayMissShader, {rt_shader, raymiss_shader_source}, EShLangMissNV, ETraceMode::TimeMap, 1 ));
+		CHECK_ERR( vulkan.Compile( OUT rayMissShader, {rt_shader, raymiss_shader_source}, EShLangMissNV ));
 	}
 
 	// create ray closest hit shader
@@ -406,7 +406,7 @@ extern bool ClockMap_Test2 (Device& vulkan)
 		VK_CHECK( vulkan.vkQueueWaitIdle( vulkan.queue ));
 	}
 
-	CHECK_ERR( vulkan.CheckTimeMap( {miss_shader, hit_shader}, 0.5f ));
+	CHECK_ERR( vulkan.CheckTimeMap( {raygen_shader}, 0.5f ));
 	
 	vulkan.FreeTempHandles();
 

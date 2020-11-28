@@ -21,6 +21,11 @@ using namespace glslang;
 #	include "spirv_glsl.hpp"
 #endif
 
+#ifdef ENABLE_OPT
+#	include "spirv-tools/optimizer.hpp"
+#	include "spirv-tools/libspirv.h"
+#endif
+
 #ifdef __linux__
 #   define fopen_s( _outFile_, _name_, _mode_ ) (*(_outFile_) = fopen( (_name_), (_mode_) ))
 #endif
@@ -230,8 +235,8 @@ bool  Device::_CreateDevice ()
 		{
 			if ( ext == VK_NV_MESH_SHADER_EXTENSION_NAME )
 			{
-				*next_feat				= &meshShaderFeat;
-				next_feat				= &meshShaderFeat.pNext;
+				*next_ext = *next_feat	= &meshShaderFeat;
+				next_ext  = next_feat	= &meshShaderFeat.pNext;
 				meshShaderFeat.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV;
 
 				*next_props				= &meshShaderProps;
@@ -243,8 +248,8 @@ bool  Device::_CreateDevice ()
 			else
 			if ( ext == VK_KHR_SHADER_CLOCK_EXTENSION_NAME )
 			{
-				*next_feat				= &shaderClockFeat;
-				next_feat				= &shaderClockFeat.pNext;
+				*next_ext = *next_feat	= &shaderClockFeat;
+				next_ext = next_feat	= &shaderClockFeat.pNext;
 				shaderClockFeat.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR;
 
 				hasShaderClock = true;
@@ -816,15 +821,17 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 	spv_options.generateDebugInfo	= false;
 	spv_options.disableOptimizer	= true;
 	spv_options.optimizeSize		= false;
-	spv_options.validate			= false;
+	spv_options.validate			= true;
 		
 	spirvData.clear();
 	GlslangToSpv( *intermediate, OUT spirvData, &logger, &spv_options );
 
+	//std::cout << logger.getAllMessages() << std::endl;
 	CHECK_ERR( spirvData.size() );
 	
 	// for debugging
-	#if 0 //def ENABLE_SPIRV_CROSS
+	#if 0 //defined(ENABLE_SPIRV_CROSS)
+	//if ( logger.getAllMessages().size() )
 	{
 		spirv_cross::CompilerGLSL			compiler {spirvData.data(), spirvData.size()};
 		spirv_cross::CompilerGLSL::Options	opt = {};
@@ -846,6 +853,26 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 
 		std::string	glsl_src = compiler.compile();
 		std::cout << glsl_src << std::endl;
+	}
+	#endif
+
+	// disassembly
+	#if 0 //defined(ENABLE_OPT) 
+	{
+		spv_context	ctx = spvContextCreate( SPV_ENV_VULKAN_1_1 );
+		CHECK_ERR( ctx != nullptr );
+
+		spv_text		text		= nullptr;
+		spv_diagnostic	diagnostic	= nullptr;
+
+		if ( spvBinaryToText( ctx, spirvData.data(), spirvData.size(), 0, &text, &diagnostic ) == SPV_SUCCESS )
+		{
+			std::cout << std::string{ text->str, text->length } << std::endl;
+		}
+		
+		spvTextDestroy( text );
+		spvDiagnosticDestroy( diagnostic );
+		spvContextDestroy( ctx );
 	}
 	#endif
 	return true;
@@ -1908,21 +1935,33 @@ bool  Device::CheckTimeMap (vector<VkShaderModule> modules, float emptyPxFactor)
 		CHECK_ERR( iter != _debuggableShaders.end() );
 	}
 
-	uint const*			ptr		= static_cast<uint const *>( readBackPtr );
-	uint				width	= *(ptr + 2);
-	uint				height	= *(ptr + 3);
-	uint64_t const*		pixels	= static_cast<uint64_t const *>( readBackPtr ) + 2;
-	uint				count	= 0;
+	uint const*		ptr		= static_cast<uint const *>( readBackPtr );
+	uint			width	= *(ptr + 2);
+	uint			height	= *(ptr + 3);
+	float const*	pixels	= static_cast<float const *>( readBackPtr ) + 4;
+	uint			count	= 0;
+
+	double			min_time	= 1.0e+300;
+	double			max_time	= 0.0;
+	double			mean_time	= 0.0;
 
 	for (uint y = 0; y < height; ++y)
 	for (uint x = 0; x < width; ++x)
 	{
-		uint64_t	dt = *(pixels + (x + y * width));
-		count += uint(dt > 0);
+		double	dt = double(*(pixels + (x + y * width)));
+		min_time   = min(min_time, dt);
+		max_time   = max(max_time, dt);
+		mean_time += dt;
+		count     += (dt > 0.0f);
 	}
 
-	float	f = float(count) / float(width * height);
-	CHECK_ERR( f >= emptyPxFactor );
+	mean_time /= double(width * height);
+
+	float	time_factor		= float((mean_time - min_time) / (max_time - min_time));
+	CHECK_ERR( time_factor > 0.0f );
+
+	float	empty_px_factor	= float(count) / float(width * height);
+	CHECK_ERR( empty_px_factor >= emptyPxFactor );
 
 	return true;
 }
