@@ -242,7 +242,7 @@ namespace
 			case SPV_COMP_VERSION_VULKAN_1_2 :
 				shader->setEnvInput( EShSourceGlsl, stage, EShClientVulkan, 120 );
 				shader->setEnvClient( EShClientVulkan, EShTargetVulkan_1_2 );
-				shader->setEnvTarget( EShTargetSpv, EShTargetSpv_1_4 );
+				shader->setEnvTarget( EShTargetSpv, EShTargetSpv_1_5 );
 				break;
 
 			default :

@@ -273,7 +273,7 @@ static void  CreateShaderDebugStorage (uint descSetIndex, DebugInfo &dbgInfo, OU
 	//  layout(binding=x, std430) buffer dbg_ShaderTraceStorage {
 	//      readonly vec2   scale;
 	//      readonly ivec2  dimension;
-	//               float  outPixels[];
+	//               uint   outPixels[];
 	//  } dbg_ShaderTrace
 	
 	TPublicType		type;		type.init({});
@@ -284,7 +284,6 @@ static void  CreateShaderDebugStorage (uint descSetIndex, DebugInfo &dbgInfo, OU
 	type.qualifier.layoutPacking= TLayoutPacking::ElpStd430;
 	type.qualifier.precision	= TPrecisionQualifier::EpqHigh;
 	type.qualifier.layoutOffset	= 0;
-		
 #ifdef USE_STORAGE_QUALIFIERS
 	type.qualifier.readonly		= true;
 #endif
@@ -301,7 +300,6 @@ static void  CreateShaderDebugStorage (uint descSetIndex, DebugInfo &dbgInfo, OU
 	type.vectorSize				= 1;
 	type.arraySizes->addInnerSize();
 	type.qualifier.layoutOffset += 8;
-
 #ifdef USE_STORAGE_QUALIFIERS
 	type.qualifier.coherent		= true;
 	type.qualifier.readonly		= false;
@@ -825,7 +823,7 @@ static bool  InsertShaderTimeMeasurementToEntry (TIntermAggregate* entry, DebugI
 			starty_mul_umax->setLeft( starty_to_d );
 			starty_mul_umax->setRight( umax_const );
 
-			// "(double(dbg_StartTime.y) * double(0xFFFFFFFF)) + double(dbg_StartTime.y)"
+			// "(double(dbg_StartTime.y) * double(0xFFFFFFFF)) + double(dbg_StartTime.x)"
 			TIntermBinary*		start_add_parts	= new TIntermBinary{ TOperator::EOpAdd };
 			start_add_parts->setType( TType{type} );
 			start_add_parts->setLeft( starty_mul_umax );
@@ -921,6 +919,13 @@ static bool  InsertShaderTimeMeasurementToEntry (TIntermAggregate* entry, DebugI
 			init_old_val->setLeft( old_value );
 			init_old_val->setRight( zero_const );
 			
+			// "uint dbg_Expected = 0;"
+			TIntermSymbol*			expected_val	= new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "dbg_Expected", TType{type} };
+			TIntermBinary*			init_exp_val	= new TIntermBinary{ TOperator::EOpAssign };
+			init_exp_val->setType( TType{type} );
+			init_exp_val->setLeft( expected_val );
+			init_exp_val->setRight( zero_const );
+
 			// new line
 
 			// "uintBitsToFloat( dbg_OldValue )"
@@ -951,7 +956,6 @@ static bool  InsertShaderTimeMeasurementToEntry (TIntermAggregate* entry, DebugI
 			// new line
 
 			// "dbg_Expected  = dbg_OldValue;"
-			TIntermSymbol*		expected_val	= new TIntermSymbol{ dbgInfo.GetUniqueSymbolID(), "dbg_Expected", TType{type} };
 			TIntermBinary*		assign_exp_val	= new TIntermBinary{ TOperator::EOpAssign };
 			assign_exp_val->setType( TType{type} );
 			assign_exp_val->setLeft( expected_val );
