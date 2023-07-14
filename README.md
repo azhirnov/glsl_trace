@@ -1,7 +1,10 @@
-[![Build Status](https://api.travis-ci.com/azhirnov/glsl_trace.svg?branch=master)](https://travis-ci.com/azhirnov/glsl_trace)
 [![GitHub license](https://img.shields.io/github/license/azhirnov/glsl_trace.svg)](https://github.com/azhirnov/glsl_trace/blob/master/LICENSE)
 
 # GLSL Trace
+Versions:
+* [v2020](https://github.com/azhirnov/glsl_trace/tree/v2020) - old version with NV mesh shader and RTX, used by [FG](https://github.com/azhirnov/FrameGraph).
+* [v2023](https://github.com/azhirnov/glsl_trace/tree/v2023) - new version with EXT mesh shader and ray tracing support, used by [AsEn](https://github.com/azhirnov/as-en).
+
 
 ## Features
  * shader debugging
