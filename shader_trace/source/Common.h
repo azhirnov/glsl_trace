@@ -1,83 +1,28 @@
-// Copyright (c) 2018-2020,  Zhirnov Andrey. For more information see 'LICENSE'
+// Copyright (c) Zhirnov Andrey. For more information see 'LICENSE'
 
 #pragma once
 
+#include <cassert>
 #include "../include/ShaderTrace.h"
-#include <unordered_map>
-#include <unordered_set>
-#include <algorithm>
-
-using std::vector;
-using std::string;
-using std::unordered_map;
-using std::unordered_set;
-using std::min;
-using std::max;
-using std::to_string;
-
-using uint = uint32_t;
 
 #define HIGH_DETAIL_TRACE
-#define USE_STORAGE_QUALIFIERS
+//#define USE_STORAGE_QUALIFIERS
 
-#include <assert.h>
 
-#ifndef OUT
-#	define OUT
-#endif
-
-#ifndef INOUT
-#	define INOUT
-#endif
-
-#ifdef _MSC_VER
-# if !defined(and)
-#	define not					!
-#	define and					&&
-#	define or					||
-# endif
-#endif
-
-#ifndef CHECK_ERR
-# ifdef _DEBUG
-#	define ASSERT( _expr_ )				{ assert(_expr_); }
-# else
-#	define ASSERT( _expr_ )				{}
-# endif
-#	define __GETARG_0( _0_, ... )		_0_
-#	define __GETARG_1( _0_, _1_, ... )	_1_
-#	define __CHECK_ERR( _expr_, _ret_ )	{if (not (_expr_)) { ASSERT(!(#_expr_)); return _ret_; } }
-#	define CHECK_ERR( ... )				__CHECK_ERR( __GETARG_0( __VA_ARGS__ ), __GETARG_1( __VA_ARGS__, 0 ))
-#	define RETURN_ERR( _msg_ )			{ ASSERT(!(#_msg_)); return 0; }
-#	define CHECK( _expr_ )				{ ASSERT(_expr_); }
-#endif
-
-#ifndef ND_
-# if defined(_MSC_VER)
-#	if _MSC_VER >= 1917
-#		define ND_		[[nodiscard]]
-#	endif
-# elif defined(__clang__)
-#	if __has_feature( cxx_attributes )
-#		define ND_		[[nodiscard]]
-#	endif
-# elif defined(__gcc__)
-#	if __has_cpp_attribute( nodiscard )
-#		define ND_		[[nodiscard]]
-#	endif
-# endif
-# ifndef ND_
-#	define ND_
-# endif
-#endif
-
-#ifdef _MSC_VER
-#	define FUNCTION_NAME			__FUNCTION__
-#elif defined(__clang__) || defined(__gcc__)
-#	define FUNCTION_NAME			__func__
+#ifdef _DEBUG
+# define ASSERT( _expr_ )				{ assert(_expr_); }
 #else
-#	define FUNCTION_NAME			"unknown function"
+# define ASSERT( _expr_ )				{}
 #endif
+#define __GETARG_0( _0_, ... )			_0_
+#define __GETARG_1( _0_, _1_, ... )		_1_
+#define __CHECK_ERR( _expr_, _ret_ )	{if (not (_expr_)) { ASSERT(!(#_expr_)); return _ret_; } }
+#define CHECK_ERR( ... )				__CHECK_ERR( __GETARG_0( __VA_ARGS__ ), __GETARG_1( __VA_ARGS__, 0 ))
+#define CHECK_ERRV( ... )				__CHECK_ERR( (__VA_ARGS__), void() )
+#define RETURN_ERR( _msg_ )				{ ASSERT(!(#_msg_)); return 0; }
+#define CHECK( _expr_ )					{ ASSERT(_expr_); }
+#define DBG_WARNING( _msg_ )			{ ASSERT( false ); }
+
 
 #ifndef BEGIN_ENUM_CHECKS
 # if defined(_MSC_VER)
@@ -106,25 +51,186 @@ using uint = uint32_t;
 
 
 // glslang includes
-#include "glslang/MachineIndependent/localintermediate.h"
-#include "glslang/Include/intermediate.h"
+#ifdef AE_ENABLE_GLSLANG
+# ifdef _MSC_VER
+#	pragma warning (push, 0)
+#	pragma warning (disable: 4005)
+#	pragma warning (disable: 4668)
+# endif
+#ifdef __clang__
+#	pragma clang diagnostic push
+#	pragma clang diagnostic ignored "-Wdouble-promotion"
+#endif
+#ifdef __gcc__
+#	pragma GCC diagnostic push
+#	pragma GCC diagnostic ignored "-Wundef"
+#	pragma GCC diagnostic ignored "-Wdouble-promotion"
+#endif
 
-ND_ std::string  GetFunctionName (glslang::TIntermOperator *op);
+# include "glslang/MachineIndependent/localintermediate.h"
+# include "glslang/Include/intermediate.h"
 
-bool ValidateInterm (glslang::TIntermediate &intermediate);
+# ifdef _MSC_VER
+#	pragma warning (pop)
+# endif
+# ifdef __clang__
+#	pragma clang diagnostic pop
+# endif
+# ifdef __gcc__
+#	pragma GCC diagnostic pop
+# endif
+#endif // AE_ENABLE_GLSLANG
 
-static const char*	RT_LaunchID[]			= { "gl_LaunchID",				"gl_LaunchIDNV" };
-static const char*	RT_LaunchSize[]			= { "gl_LaunchSize",			"gl_LaunchSizeNV" };
-static const char*	RT_InstanceCustomIndex[]= { "gl_InstanceCustomIndex",	"gl_InstanceCustomIndexNV" };
-static const char*	RT_WorldRayOrigin[]		= {	"gl_WorldRayOrigin",		"gl_WorldRayOriginNV" };
-static const char*	RT_WorldRayDirection[]	= {	"gl_WorldRayDirection",		"gl_WorldRayDirectionNV" };
-static const char*	RT_ObjectRayOrigin[]	= {	"gl_ObjectRayOrigin",		"gl_ObjectRayOriginNV" };
-static const char*	RT_ObjectRayDirection[]	= {	"gl_ObjectRayDirection",	"gl_ObjectRayDirectionNV" };
-static const char*	RT_RayTmin[]			= {	"gl_RayTmin",				"gl_RayTminNV" };
-static const char*	RT_RayTmax[]			= {	"gl_RayTmax",				"gl_RayTmaxNV" };
-static const char*	RT_IncomingRayFlags[]	= {	"gl_IncomingRayFlags",		"gl_IncomingRayFlagsNV" };
-static const char*	RT_ObjectToWorld[]		= {	"gl_ObjectToWorld",			"gl_ObjectToWorldNV" };
-static const char*	RT_WorldToObject[]		= {	"gl_WorldToObject",			"gl_WorldToObjectNV" };
-static const char*	RT_HitT[]				= {	"gl_HitT",					"gl_HitTNV" };
-static const char*	RT_HitKind[]			= {	"gl_HitKind",				"gl_HitKindNV" };
-static const char*	RT_InstanceID[]			= {	"gl_InstanceID",			"gl_InstanceIDNV" };
+
+namespace AE::PipelineCompiler
+{
+	using namespace std::string_literals;
+
+	using VariableID = ShaderTrace::VariableID;
+	
+/*
+=================================================
+	operator << (String &, String)
+	operator << (String &, StringView)
+	operator << (String &, CStyleString)
+	operator << (String &, char)
+=================================================
+*/
+	inline String&&  operator << (String &&lhs, const String &rhs)
+	{
+		return RVRef( RVRef(lhs).append( rhs.data(), rhs.size() ));
+	}
+
+	inline String&  operator << (String &lhs, const String &rhs)
+	{
+		return lhs.append( rhs.data(), rhs.size() );
+	}
+
+	inline String&&  operator << (String &&lhs, const StringView &rhs)
+	{
+		return RVRef( RVRef(lhs).append( rhs.data(), rhs.size() ));
+	}
+
+	inline String&  operator << (String &lhs, const StringView &rhs)
+	{
+		return lhs.append( rhs.data(), rhs.size() );
+	}
+
+	inline String&&  operator << (String &&lhs, char const * const rhs)
+	{
+		return RVRef( RVRef(lhs).append( rhs ));
+	}
+
+	inline String&  operator << (String &lhs, char const * const rhs)
+	{
+		return lhs.append( rhs );
+	}
+
+	inline String&&  operator << (String &&lhs, const char rhs)
+	{
+		return RVRef( RVRef(lhs) += rhs );
+	}
+
+	inline String&  operator << (String &lhs, const char rhs)
+	{
+		return (lhs += rhs);
+	}
+	
+
+/*
+=================================================
+	ToString
+=================================================
+*/
+	ND_ inline String  ToString (String value)
+	{
+		return value;
+	}
+
+	ND_ inline String  ToString (const char value[])
+	{
+		return String{value};
+	}
+
+	template <typename T>
+	ND_ std::enable_if_t<not std::is_enum_v<T>, String>  ToString (const T &value)
+	{
+		return std::to_string( value );
+	}
+	
+	ND_ inline String  ToString (const Path &path)
+	{
+		return path.string();
+	}
+}
+//-----------------------------------------------------------------------------
+
+
+	
+namespace AE::PipelineCompiler
+{
+# ifdef AE_ENABLE_GLSLANG
+
+	using namespace glslang;
+
+
+	ND_ String  GetFunctionName (glslang::TIntermOperator *op);
+
+	ND_ bool  ValidateInterm (glslang::TIntermediate &intermediate);
+
+
+/*
+=================================================
+	TSourceLoc::operator ==
+=================================================
+*/
+	ND_ inline bool  operator == (const TSourceLoc &lhs, const TSourceLoc &rhs)
+	{
+		if ( lhs.name != rhs.name )
+		{
+			if ( lhs.name == null  or
+				 rhs.name == null  or
+				*lhs.name != *rhs.name )
+				return false;
+		}
+
+		return	lhs.string	== rhs.string	and
+				lhs.line	== rhs.line		and
+				lhs.column	== rhs.column;
+	}
+
+	ND_ inline bool  operator != (const TSourceLoc &lhs, const TSourceLoc &rhs)
+	{
+		return not (lhs == rhs);
+	}
+
+	ND_ inline bool  operator < (const TSourceLoc &lhs, const TSourceLoc &rhs)
+	{
+		if ( lhs.name != rhs.name )
+		{
+			if ( lhs.name == null  or
+				 rhs.name == null )
+				return false;
+
+			if ( *lhs.name != *rhs.name )
+				return *lhs.name < *rhs.name;
+		}
+
+		return	lhs.string	!= rhs.string	? lhs.string < rhs.string	:
+				lhs.line	!= rhs.line		? lhs.line	 < rhs.line		:
+											  lhs.column < rhs.column;
+	}
+
+/*
+=================================================
+	SourcePoint
+=================================================
+*/
+	inline ShaderTrace::SourcePoint::SourcePoint (const TSourceLoc &loc) :
+		SourcePoint{ uint(loc.line), uint(loc.column) }
+	{}
+
+# endif // AE_ENABLE_GLSLANG
+
+
+} // AE::PipelineCompiler
