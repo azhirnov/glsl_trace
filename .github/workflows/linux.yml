@@ -1,0 +1,65 @@
+name: Linux
+
+on: [push, pull_request]
+
+jobs:
+  build-debug-gcc-10:
+    runs-on: ubuntu-latest
+    name: Debug GCC 10, x64
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Configure dependencies
+      run: |
+        sudo apt-get install build-essential pkg-config libx11-dev libxcursor-dev \
+          libxinerama-dev libgl1-mesa-dev libglu-dev libasound2-dev libpulse-dev libudev-dev libxi-dev libxrandr-dev yasm
+
+    - name: Create Build Environment
+      run: cmake -E make_directory ${{runner.workspace}}/build
+
+    - name: Configure CMake
+      env:
+        CC: gcc-10
+        CXX: g++-10
+      shell: bash
+      working-directory: ${{runner.workspace}}/build
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCI_BUILD=ON ..
+
+    - name: Build
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      run: cmake --build . --config Debug
+
+
+  build-release-gcc-10:
+    runs-on: ubuntu-latest
+    name: Release GCC 10, x64
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Configure dependencies
+      run: |
+        sudo apt-get install build-essential pkg-config libx11-dev libxcursor-dev \
+          libxinerama-dev libgl1-mesa-dev libglu-dev libasound2-dev libpulse-dev libudev-dev libxi-dev libxrandr-dev yasm
+
+    - name: Create Build Environment
+      run: cmake -E make_directory ${{runner.workspace}}/build
+
+    - name: Configure CMake
+      env:
+        CC: gcc-10
+        CXX: g++-10
+      shell: bash
+      working-directory: ${{runner.workspace}}/build
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Release -DCI_BUILD=ON ..
+
+    - name: Build
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      run: cmake --build . --config Release
