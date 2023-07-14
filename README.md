@@ -2,56 +2,15 @@
 
 # GLSL Trace
 
+Versions:
+* [v2020](https://github.com/azhirnov/glsl_trace/tree/v2020) - old version with NV mesh shader and RTX, used by [FG](https://github.com/azhirnov/FrameGraph).
+* [v2023](https://github.com/azhirnov/glsl_trace/tree/v2023) - new version with EXT mesh shader and ray tracing support, used by [AsEn](https://github.com/azhirnov/as-en).
+
+
 ## Features
- * shader debugging
- * shader profiling (using extensions [EXT_shader_realtime_clock](https://github.com/KhronosGroup/GLSL/blob/master/extensions/ext/EXT_shader_realtime_clock.txt) and [ARB_shader_clock](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_shader_clock.txt))
- * supports mesh and ray tracing shaders.
-
-
-## Dependencies
- * [glslang](https://github.com/KhronosGroup/glslang) - required
- * [GLFW](https://www.glfw.org/) - for tests
-
-
-## How to use
-**Setup:**</br> 
- * Use [glslang](https://github.com/KhronosGroup/glslang) to parse GLSL or HLSL source code and build AST
- * Convert glslang AST to SPIRV and create pipeline for reqular rendering.
- * Create `ShaderTrace` object to store debug information
- * Get glslang AST `TProgram::getIntermediate(EShLanguage stage)`
- * Insert trace recording `ShaderTrace::InsertTraceRecording(TIntermediate &intermediate, uint32_t setIndex)` or `ShaderTrace::InsertFunctionProfiler(TIntermediate &intermediate, uint32_t setIndex, bool shaderSubgroupClock, bool shaderDeviceClock)`, where:</br>
-   shaderSubgroupClock - requires extension `VK_KHR_shader_clock` and `VkPhysicalDeviceShaderClockFeaturesKHR::shaderSubgroupClock` must be true.</br>
-   shaderDeviceClock - requires extension `VK_KHR_shader_clock` and `VkPhysicalDeviceShaderClockFeaturesKHR::shaderDeviceClock` must be true.</br>
-   `descSetIndex` - descriptor set index that will be reserved for storage buffer</br>
- * Convert AST with trace recording to SPIRV and create pipeline for debugging.
-
-
-**To debug draw or compute or ray tracing invocation:**</br> 
- 
- * Bind pipeline that contains shader with inserted trace recording.
- * Bind descriptor set with storage buffer to index `descSetIndex`.
- * After invocation map storage buffer and pass pointer to `ShaderTrace::ParseShaderTrace (const void *ptr, uint64_t maxSize, vector<string> &result)`.
- 
- 
-## How its works
- **Debugging:**
- * AST processing: log all function results, log all function calls, log some operator results.
- * Result parsing: write modified values, write unmodified values that are used, write line number and line from source code.
- 
- **Pixel/invocation profiling:**
- * AST processing: insert time measurement into user-defined functions.
- * Result parsing: calculate average time and a fraction of the total shader execution time.
- 
- **Frame profiling:**
- * AST processing: insert time measurement into entry function.
- * Result: sum of shader invocation time per pixel or tile.
- 
- **All:**
- * Shader trace recorded to the storage buffer as forward list using atomic operations.
- * Each `ShaderTrace` object has unique number to determine different shaders when parsing results.
- * Allowed debugging on different shader stages in single draw/dispatch call.
- * Many invocations of same or different shaders can be recoreded into one storage buffer.
-
+ * Shader trace recording for debugging.
+ * Shader profiling (using extensions [EXT_shader_realtime_clock](https://github.com/KhronosGroup/GLSL/blob/master/extensions/ext/EXT_shader_realtime_clock.txt) and [ARB_shader_clock](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_shader_clock.txt).
+ * Supports mesh and ray tracing shaders.
 
 ## Debugging
 
@@ -399,3 +358,49 @@ for (uint32_t x = 0; x < image_width; ++x)
 ![](ShaderClockHeatmap.jpg)
 
 </details>
+
+
+## Dependencies
+ * [glslang](https://github.com/KhronosGroup/glslang) - required
+ * [GLFW](https://www.glfw.org/) - for tests
+
+
+## How to use
+**Setup:**</br> 
+ * Use [glslang](https://github.com/KhronosGroup/glslang) to parse GLSL or HLSL source code and build AST
+ * Convert glslang AST to SPIRV and create pipeline for reqular rendering.
+ * Create `ShaderTrace` object to store debug information
+ * Get glslang AST `TProgram::getIntermediate(EShLanguage stage)`
+ * Insert trace recording `ShaderTrace::InsertTraceRecording(TIntermediate &intermediate, uint32_t setIndex)` or `ShaderTrace::InsertFunctionProfiler(TIntermediate &intermediate, uint32_t setIndex, bool shaderSubgroupClock, bool shaderDeviceClock)`, where:</br>
+   shaderSubgroupClock - requires extension `VK_KHR_shader_clock` and `VkPhysicalDeviceShaderClockFeaturesKHR::shaderSubgroupClock` must be true.</br>
+   shaderDeviceClock - requires extension `VK_KHR_shader_clock` and `VkPhysicalDeviceShaderClockFeaturesKHR::shaderDeviceClock` must be true.</br>
+   `descSetIndex` - descriptor set index that will be reserved for storage buffer</br>
+ * Convert AST with trace recording to SPIRV and create pipeline for debugging.
+
+
+**To debug draw or compute or ray tracing invocation:**</br> 
+ 
+ * Bind pipeline that contains shader with inserted trace recording.
+ * Bind descriptor set with storage buffer to index `descSetIndex`.
+ * After invocation map storage buffer and pass pointer to `ShaderTrace::ParseShaderTrace (const void *ptr, uint64_t maxSize, vector<string> &result)`.
+ 
+ 
+## How its works
+ **Debugging:**
+ * AST processing: log all function results, log all function calls, log some operator results.
+ * Result parsing: write modified values, write unmodified values that are used, write line number and line from source code.
+ 
+ **Pixel/invocation profiling:**
+ * AST processing: insert time measurement into user-defined functions.
+ * Result parsing: calculate average time and a fraction of the total shader execution time.
+ 
+ **Frame profiling:**
+ * AST processing: insert time measurement into entry function.
+ * Result: sum of shader invocation time per pixel or tile.
+ 
+ **All:**
+ * Shader trace recorded to the storage buffer as forward list using atomic operations.
+ * Each `ShaderTrace` object has unique number to determine different shaders when parsing results.
+ * Allowed debugging on different shader stages in single draw/dispatch call.
+ * Many invocations of same or different shaders can be recoreded into one storage buffer.
+

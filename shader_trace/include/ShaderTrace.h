@@ -2,8 +2,12 @@
 /*
 	GLSL Trace project.
 
-	old project: https://github.com/azhirnov/glsl_trace
-	new project: https://gitflic.ru/project/azhirnov/as-en/file?file=engine%2Ftools%2Fres_pack%2Fshader_trace
+	old project:
+		https://github.com/azhirnov/glsl_trace
+	new project:
+		https://gitflic.ru/project/azhirnov/as-en/file?file=engine%2Ftools%2Fres_pack%2Fshader_trace
+		https://github.com/azhirnov/as-en/tree/preview/engine/tools/res_pack/shader_trace
+		https://github.com/azhirnov/glsl_trace/tree/v2023
 */
 
 #pragma once
