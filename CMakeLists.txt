@@ -52,11 +52,6 @@ elseif (${ENABLE_TESTS})
 	add_subdirectory( "glfw" )
 	
 	add_subdirectory( "tests/vulkan" )
-	
-	# OpenGL
-	#add_subdirectory( "SPIRV-Cross" )
-	#add_subdirectory( "glew/build/cmake" )
-	#add_subdirectory( "tests/opengl" )
 endif ()
 
 message( STATUS "project 'GLSL-Trace' generation ended" )
