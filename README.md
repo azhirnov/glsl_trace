@@ -1,4 +1,3 @@
-[![Build Status](https://api.travis-ci.com/azhirnov/glsl_trace.svg?branch=master)](https://travis-ci.com/azhirnov/glsl_trace)
 [![GitHub license](https://img.shields.io/github/license/azhirnov/glsl_trace.svg)](https://github.com/azhirnov/glsl_trace/blob/master/LICENSE)
 
 # GLSL Trace

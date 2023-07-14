@@ -24,49 +24,26 @@ set( EXTERNALS_INSTALL_PATH "${CMAKE_BINARY_DIR}/external_libs" CACHE PATH "Path
 
 include( "cmake/compilers_minimal.cmake" )
 
-# prepare for external projects
-if (TRUE)
-	include( ExternalProject )
+add_subdirectory( "glslang" )
 
-	set( LIST_SEPARATOR "|" )
-	string( REPLACE ";" "${LIST_SEPARATOR}" EXTERNAL_CONFIGURATION_TYPES "${CMAKE_CONFIGURATION_TYPES}" )
-	set( BUILD_TARGET_FLAGS 	"-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
-								"-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
-								"-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
-								"-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
-								"-DCMAKE_EXE_LINKER_FLAGS=${CMAKE_EXE_LINKER_FLAGS}"
-								"-DCMAKE_STATIC_LINKER_FLAGS=${CMAKE_STATIC_LINKER_FLAGS}"
-								"-DCMAKE_SHARED_LINKER_FLAGS=${CMAKE_SHARED_LINKER_FLAGS}" )
-
-	foreach ( CONFIG ${CMAKE_CONFIGURATION_TYPES} )
-		string( TOUPPER ${CONFIG} OUT_CONFIG )
-
-		set( BUILD_TARGET_FLAGS
-			"${BUILD_TARGET_FLAGS}"
-			"-DCMAKE_C_FLAGS_${OUT_CONFIG}=${CMAKE_C_FLAGS_${OUT_CONFIG}}"
-			"-DCMAKE_CXX_FLAGS_${OUT_CONFIG}=${CMAKE_CXX_FLAGS_${OUT_CONFIG}}"
-			"-DCMAKE_EXE_LINKER_FLAGS_${OUT_CONFIG}=${CMAKE_EXE_LINKER_FLAGS_${OUT_CONFIG}}"
-			"-DCMAKE_STATIC_LINKER_FLAGS_${OUT_CONFIG}=${CMAKE_STATIC_LINKER_FLAGS_${OUT_CONFIG}}"
-			"-DCMAKE_SHARED_LINKER_FLAGS_${OUT_CONFIG}=${CMAKE_SHARED_LINKER_FLAGS_${OUT_CONFIG}}" )
-	endforeach ()
-endif ()
-
-include( "cmake/download_glslang.cmake" )
 include( "cmake/project_template.cmake" )
 add_subdirectory( "shader_trace" )
+add_subdirectory( "spv_compiler" )
 
 if (DEFINED CI_BUILD)
-	include( "cmake/download_vk.cmake" )
 	add_subdirectory( "tests/vulkan" )
 
 elseif (${ENABLE_TESTS})
 	enable_testing()
-	include( "cmake/download_vk.cmake" )
-	include( "cmake/download_glfw.cmake" )
-	include( "cmake/download_glew.cmake" )
-	include( "cmake/download_spirvcross.cmake" )
-	add_subdirectory( "tests/opengl" )
+	
+	# Vulkan
+	add_subdirectory( "glfw" )
 	add_subdirectory( "tests/vulkan" )
+	
+	# OpenGL
+	#add_subdirectory( "SPIRV-Cross" )
+	#add_subdirectory( "glew/build/cmake" )
+	#add_subdirectory( "tests/opengl" )
 endif ()
 
 message( STATUS "project 'GLSL-Trace' generation ended" )
