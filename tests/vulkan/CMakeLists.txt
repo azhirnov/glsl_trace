@@ -5,11 +5,16 @@ add_executable( "Tests.Vulkan" ${SOURCES} ${UTILS_SRC} )
 source_group( TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES} )
 
 set_property( TARGET "Tests.Vulkan" PROPERTY FOLDER "" )
+
+target_include_directories( "Tests.Vulkan" PUBLIC "../.." )
+target_include_directories( "Tests.Vulkan" PUBLIC "../../Vulkan-Headers/include" )
+
 target_link_libraries( "Tests.Vulkan" PUBLIC "ShaderTrace" )
-target_link_libraries( "Tests.Vulkan" PUBLIC "Vulkan-lib" )
+target_link_libraries( "Tests.Vulkan" PUBLIC "glslang" "SPIRV" )
+target_compile_definitions( "Tests.Vulkan" PUBLIC "AE_ENABLE_GLSLANG" )
 
 if (FALSE)
-	target_link_libraries( "Tests.Vulkan" PUBLIC "SPIRV-Cross-lib" )
+	target_link_libraries( "Tests.Vulkan" PUBLIC "SPIRV-Cross" )
 	target_compile_definitions( "Tests.Vulkan" PUBLIC ENABLE_SPIRV_CROSS )
 endif ()
 

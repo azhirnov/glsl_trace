@@ -12,6 +12,8 @@ namespace AE::PipelineCompiler
 {
 namespace
 {
+	using namespace glslang;
+
 
 	//
 	// Debug Info

@@ -1,6 +1,6 @@
-// Copyright (c) 2018-2020,  Zhirnov Andrey. For more information see 'LICENSE'
+// Copyright (c) Zhirnov Andrey. For more information see 'LICENSE'
 
-#include "Device.h"
+#include "TestDevice.h"
 #include <iostream>
 #include <functional>
 #include <memory>
@@ -12,8 +12,6 @@
 #include "glslang/SPIRV/disassemble.h"
 #include "glslang/SPIRV/GlslangToSpv.h"
 #include "glslang/SPIRV/GLSL.std.450.h"
-#include "StandAlone/ResourceLimits.cpp"
-using namespace glslang;
 
 // spirv cross
 #ifdef ENABLE_SPIRV_CROSS
@@ -26,11 +24,15 @@ using namespace glslang;
 #	include "spirv-tools/libspirv.h"
 #endif
 
+// resources are removed in new version of glslang, so define it locally.
+#include "ResourceLimits.h"
+
+#define AE_LOGI( ... )\
+	std::cout << __VA_ARGS__;
+
 #ifdef __linux__
 #   define fopen_s( _outFile_, _name_, _mode_ ) (*(_outFile_) = fopen( (_name_), (_mode_) ))
 #endif
-
-using std::unique_ptr;
 
 struct float3
 {
@@ -42,11 +44,17 @@ struct float4
 	float	x, y, z, w;
 };
 
+template <typename T> using Unique		= std::unique_ptr<T>;
+template <typename T> using Function	= std::function<T>;
+
+
 template <typename T0, typename T1>
-ND_ auto  AlignToLarger (const T0 &value, const T1 &align)
+ND_ auto  AlignUp (const T0 &value, const T1 &align)
 {
 	return ((value + align-1) / align) * align;
 }
+
+using namespace AE::PipelineCompiler;
 
 // Warning:
 // Before testing on new GPU set 'UpdateReferences' to 'true', run tests,
@@ -61,7 +69,7 @@ static const bool	UpdateReferences = true;
 	Create
 =================================================
 */
-bool  Device::Create ()
+bool  TestDevice::Create ()
 {
 	glslang::InitializeProcess();
 	_tempBuf.reserve( 1024 );
@@ -76,7 +84,7 @@ bool  Device::Create ()
 	Destroy
 =================================================
 */
-void  Device::Destroy ()
+void  TestDevice::Destroy ()
 {
 	_DestroyResources();
 	_DestroyDevice();
@@ -94,15 +102,15 @@ void  Device::Destroy ()
 	_CreateDevice
 =================================================
 */
-bool  Device::_CreateDevice ()
+bool  TestDevice::_CreateDevice ()
 {
 	VulkanDeviceFn_Init( &_deviceFnTable );
 
 	// create instance
 	{
-		uint	version = VK_API_VERSION_1_1;
+		uint	version = VK_API_VERSION_1_2;
 		
-		vector< const char* >	instance_extensions = {
+		Array< const char* >	instance_extensions = {
 			#ifdef VK_KHR_get_physical_device_properties2
 				VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
 			#endif
@@ -110,7 +118,7 @@ bool  Device::_CreateDevice ()
 				VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
 			#endif
 		};
-		vector< const char* >	instance_layers = {
+		Array< const char* >	instance_layers = {
 			"VK_LAYER_KHRONOS_validation"
 		};
 		
@@ -136,7 +144,7 @@ bool  Device::_CreateDevice ()
 		instance_create_info.enabledLayerCount			= uint(instance_layers.size());
 		instance_create_info.ppEnabledLayerNames		= instance_layers.data();
 
-		VK_CHECK( vkCreateInstance( &instance_create_info, nullptr, OUT &instance ));
+		VK_CHECK_ERR( vkCreateInstance( &instance_create_info, null, OUT &instance ));
 
 		VulkanLoader::LoadInstance( instance );
 	}
@@ -144,23 +152,23 @@ bool  Device::_CreateDevice ()
 	// choose physical device
 	{
 		uint						count	= 0;
-		vector< VkPhysicalDevice >	devices;
+		Array< VkPhysicalDevice >	devices;
 		
-		VK_CALL( vkEnumeratePhysicalDevices( instance, OUT &count, nullptr ));
+		VK_CHECK( vkEnumeratePhysicalDevices( instance, OUT &count, null ));
 		CHECK_ERR( count > 0 );
 
 		devices.resize( count );
-		VK_CALL( vkEnumeratePhysicalDevices( instance, OUT &count, OUT devices.data() ));
+		VK_CHECK( vkEnumeratePhysicalDevices( instance, OUT &count, OUT devices.data() ));
 
 		physicalDevice = devices[0];
 	}
 
 	// find queue
 	{
-		vector< VkQueueFamilyProperties >	queue_family_props;
+		Array< VkQueueFamilyProperties >	queue_family_props;
 		
 		uint	count = 0;
-		vkGetPhysicalDeviceQueueFamilyProperties( physicalDevice, OUT &count, nullptr );
+		vkGetPhysicalDeviceQueueFamilyProperties( physicalDevice, OUT &count, null );
 		CHECK_ERR( count > 0 );
 		
 		queue_family_props.resize( count );
@@ -179,15 +187,24 @@ bool  Device::_CreateDevice ()
 
 	// create logical device
 	{
-		vector< const char* >	device_extensions = {
+		Array< const char* >	device_extensions = {
 			#ifdef VK_KHR_shader_clock
 				VK_KHR_SHADER_CLOCK_EXTENSION_NAME,
 			#endif
-			#ifdef VK_NV_mesh_shader
+			#ifdef VK_EXT_mesh_shader
 				VK_NV_MESH_SHADER_EXTENSION_NAME,
 			#endif
-			#ifdef VK_NV_ray_tracing
-				VK_NV_RAY_TRACING_EXTENSION_NAME,
+			#ifdef VK_KHR_deferred_host_operations
+				VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+			#endif
+			#ifdef VK_KHR_acceleration_structure
+				VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+			#endif
+			#ifdef VK_KHR_ray_tracing_pipeline
+				VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+			#endif
+			#ifdef VK_KHR_buffer_device_address
+				VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
 			#endif
 		};
 
@@ -226,47 +243,76 @@ bool  Device::_CreateDevice ()
 		feat2.sType		= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
 		props2.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 		
-		meshShaderFeat  = {};
-		meshShaderProps = {};
-		shaderClockFeat = {};
-		rayTracingProps = {};
+		meshShaderFeats				= {};
+		meshShaderProps				= {};
+		shaderClockFeats			= {};
+		accelerationStructureFeats	= {};
+		accelerationStructureProps	= {};
+		rayTracingPipelineFeats		= {};
+		rayTracingPipelineProps		= {};
 
-		for (string ext : device_extensions)
+		VkPhysicalDeviceBufferDeviceAddressFeaturesKHR  bufferDeviceAddressFeats = {};
+
+		for (StringView ext : device_extensions)
 		{
-			if ( ext == VK_NV_MESH_SHADER_EXTENSION_NAME )
+			if ( ext == VK_EXT_MESH_SHADER_EXTENSION_NAME )
 			{
-				*next_ext = *next_feat	= &meshShaderFeat;
-				next_ext  = next_feat	= &meshShaderFeat.pNext;
-				meshShaderFeat.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV;
+				*next_ext = *next_feat	= &meshShaderFeats;
+				next_ext  = next_feat	= &meshShaderFeats.pNext;
+				meshShaderFeats.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
 
 				*next_props				= &meshShaderProps;
 				next_props				= &meshShaderProps.pNext;
-				meshShaderProps.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_NV;
+				meshShaderProps.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
 
 				hasMeshShader = true;
 			}
 			else
 			if ( ext == VK_KHR_SHADER_CLOCK_EXTENSION_NAME )
 			{
-				*next_ext = *next_feat	= &shaderClockFeat;
-				next_ext = next_feat	= &shaderClockFeat.pNext;
-				shaderClockFeat.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR;
+				*next_ext = *next_feat	= &shaderClockFeats;
+				next_ext = next_feat	= &shaderClockFeats.pNext;
+				shaderClockFeats.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR;
 
 				hasShaderClock = true;
 			}
 			else
-			if ( ext == VK_NV_RAY_TRACING_EXTENSION_NAME )
+			if ( ext == VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME )
 			{
-				*next_props				= &rayTracingProps;
-				next_props				= &rayTracingProps.pNext;
-				rayTracingProps.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
+				*next_ext = *next_feat			= &accelerationStructureFeats;
+				next_ext  = next_feat			= &accelerationStructureFeats.pNext;
+				accelerationStructureFeats.sType= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+
+				*next_props						= &accelerationStructureProps;
+				next_props						= &accelerationStructureProps.pNext;
+				accelerationStructureProps.sType= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
 
 				hasRayTracing = true;
+			}
+			else
+			if ( ext == VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME )
+			{
+				*next_ext = *next_feat			= &rayTracingPipelineFeats;
+				next_ext  = next_feat			= &rayTracingPipelineFeats.pNext;
+				rayTracingPipelineFeats.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+
+				*next_props						= &rayTracingPipelineProps;
+				next_props						= &rayTracingPipelineProps.pNext;
+				rayTracingPipelineProps.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+
+				hasRayTracing = true;
+			}
+			else
+			if ( ext == VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME )
+			{
+				*next_ext = *next_feat			= &bufferDeviceAddressFeats;
+				next_ext  = next_feat			= &bufferDeviceAddressFeats.pNext;
+				bufferDeviceAddressFeats.sType	= VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR;
 			}
 		}
 		vkGetPhysicalDeviceFeatures2( physicalDevice, OUT &feat2 );
 
-		VK_CHECK( vkCreateDevice( physicalDevice, &device_info, nullptr, OUT &device ));
+		VK_CHECK_ERR( vkCreateDevice( physicalDevice, &device_info, null, OUT &device ));
 		
 		VulkanLoader::LoadDevice( device, OUT _deviceFnTable );
 
@@ -285,17 +331,17 @@ bool  Device::_CreateDevice ()
 	_DestroyDevice
 =================================================
 */
-void  Device::_DestroyDevice ()
+void  TestDevice::_DestroyDevice ()
 {
 	if ( _debugUtilsMessenger )
 	{
-		vkDestroyDebugUtilsMessengerEXT( instance, _debugUtilsMessenger, nullptr );
+		vkDestroyDebugUtilsMessengerEXT( instance, _debugUtilsMessenger, null );
 		_debugUtilsMessenger = VK_NULL_HANDLE;
 	}
 
 	if ( device )
 	{
-		vkDestroyDevice( device, nullptr );
+		vkDestroyDevice( device, null );
 		device = VK_NULL_HANDLE;
 		VulkanLoader::ResetDevice( OUT _deviceFnTable );
 	}
@@ -309,7 +355,7 @@ void  Device::_DestroyDevice ()
 
 	if ( instance )
 	{
-		vkDestroyInstance( instance, nullptr );
+		vkDestroyInstance( instance, null );
 		instance = VK_NULL_HANDLE;
 		VulkanLoader::Unload();
 	}
@@ -320,16 +366,16 @@ void  Device::_DestroyDevice ()
 	_CreateResources
 =================================================
 */
-bool  Device::_CreateResources ()
+bool  TestDevice::_CreateResources ()
 {
 	// create command pool
 	{
 		VkCommandPoolCreateInfo		info = {};
 		info.sType				= VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		info.flags				= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-		info.queueFamilyIndex	= queueFamily;
+		info.queueFamilyIndex	= GetQueueFamily();
 
-		VK_CHECK( vkCreateCommandPool( device, &info, nullptr, OUT &cmdPool ));
+		VK_CHECK_ERR( vkCreateCommandPool( GetVkDevice(), &info, null, OUT &cmdPool ));
 
 		VkCommandBufferAllocateInfo		alloc = {};
 		alloc.sType					= VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -337,7 +383,7 @@ bool  Device::_CreateResources ()
 		alloc.level					= VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		alloc.commandBufferCount	= 1;
 
-		VK_CHECK( vkAllocateCommandBuffers( device, &alloc, OUT &cmdBuffer ));
+		VK_CHECK_ERR( vkAllocateCommandBuffers( GetVkDevice(), &alloc, OUT &cmdBuffer ));
 	}
 
 	// create descriptor pool
@@ -346,10 +392,10 @@ bool  Device::_CreateResources ()
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
 			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
 			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 100 },
-			{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV, 100 }
+			{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 100 }
 		};
-		
-		if ( rayTracingProps.shaderGroupHandleSize == 0 )
+
+		if ( GetRayTracingFeats().rayTracingPipeline == VK_FALSE )
 		{
 			// if ray-tracing is not supported then change descriptor type for something else
 			sizes[3].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
@@ -358,16 +404,16 @@ bool  Device::_CreateResources ()
 		VkDescriptorPoolCreateInfo		info = {};
 		info.sType			= VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		info.maxSets		= 100;
-		info.poolSizeCount	= uint(std::size( sizes ));
+		info.poolSizeCount	= uint(CountOf( sizes ));
 		info.pPoolSizes		= sizes;
 
-		VK_CHECK( vkCreateDescriptorPool( device, &info, nullptr, OUT &descPool ));
+		VK_CHECK_ERR( vkCreateDescriptorPool( GetVkDevice(), &info, null, OUT &descPool ));
 	}
-	
+
 	// debug output buffer
 	{
-		debugOutputSize = min( debugOutputSize, deviceProps.limits.maxStorageBufferRange );
-		std::cout <<  "Shader debug output storage buffer size: " << to_string(debugOutputSize) << std::endl;
+		debugOutputSize = Min( debugOutputSize, GetDeviceProps().limits.maxStorageBufferRange );
+		AE_LOGI( "Shader debug output storage buffer size: "s << ToString(debugOutputSize) );
 
 		VkBufferCreateInfo	info = {};
 		info.sType			= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -376,19 +422,19 @@ bool  Device::_CreateResources ()
 		info.usage			= VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
-		VK_CHECK( vkCreateBuffer( device, &info, nullptr, OUT &debugOutputBuf ));
-		
+		VK_CHECK_ERR( vkCreateBuffer( GetVkDevice(), &info, null, OUT &debugOutputBuf ));
+
 		VkMemoryRequirements	mem_req;
-		vkGetBufferMemoryRequirements( device, debugOutputBuf, OUT &mem_req );
-		
-		// allocate device local memory
+		vkGetBufferMemoryRequirements( GetVkDevice(), debugOutputBuf, OUT &mem_req );
+
+		// allocate GetVkDevice() local memory
 		VkMemoryAllocateInfo	alloc_info = {};
 		alloc_info.sType			= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		alloc_info.allocationSize	= mem_req.size;
 		CHECK_ERR( GetMemoryTypeIndex( mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, OUT alloc_info.memoryTypeIndex ));
 
-		VK_CHECK( vkAllocateMemory( device, &alloc_info, nullptr, OUT &debugOutputMem ));
-		VK_CHECK( vkBindBufferMemory( device, debugOutputBuf, debugOutputMem, 0 ));
+		VK_CHECK_ERR( vkAllocateMemory( GetVkDevice(), &alloc_info, null, OUT &debugOutputMem ));
+		VK_CHECK_ERR( vkBindBufferMemory( GetVkDevice(), debugOutputBuf, debugOutputMem, 0 ));
 	}
 
 	// debug output read back buffer
@@ -400,11 +446,11 @@ bool  Device::_CreateResources ()
 		info.usage			= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
-		VK_CHECK( vkCreateBuffer( device, &info, nullptr, OUT &readBackBuf ));
-		
+		VK_CHECK_ERR( vkCreateBuffer( GetVkDevice(), &info, null, OUT &readBackBuf ));
+
 		VkMemoryRequirements	mem_req;
-		vkGetBufferMemoryRequirements( device, readBackBuf, OUT &mem_req );
-		
+		vkGetBufferMemoryRequirements( GetVkDevice(), readBackBuf, OUT &mem_req );
+
 		// allocate host visible memory
 		VkMemoryAllocateInfo	alloc_info = {};
 		alloc_info.sType			= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -412,10 +458,10 @@ bool  Device::_CreateResources ()
 		CHECK_ERR( GetMemoryTypeIndex( mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 									   OUT alloc_info.memoryTypeIndex ));
 
-		VK_CHECK( vkAllocateMemory( device, &alloc_info, nullptr, OUT &readBackMem ));
-		VK_CHECK( vkMapMemory( device, readBackMem, 0, info.size, 0, OUT &readBackPtr ));
+		VK_CHECK_ERR( vkAllocateMemory( GetVkDevice(), &alloc_info, null, OUT &readBackMem ));
+		VK_CHECK_ERR( vkMapMemory( GetVkDevice(), readBackMem, 0, info.size, 0, OUT &readBackPtr ));
 
-		VK_CHECK( vkBindBufferMemory( device, readBackBuf, readBackMem, 0 ));
+		VK_CHECK_ERR( vkBindBufferMemory( GetVkDevice(), readBackBuf, readBackMem, 0 ));
 	}
 	return true;
 }
@@ -425,43 +471,43 @@ bool  Device::_CreateResources ()
 	_DestroyResources
 =================================================
 */
-void  Device::_DestroyResources ()
+void  TestDevice::_DestroyResources ()
 {
 	if ( cmdPool )
 	{
-		vkDestroyCommandPool( device, cmdPool, nullptr );
-		cmdPool		= VK_NULL_HANDLE;
-		cmdBuffer	= VK_NULL_HANDLE;
+		vkDestroyCommandPool( GetVkDevice(), cmdPool, null );
+		cmdPool		= Default;
+		cmdBuffer	= Default;
 	}
 
 	if ( descPool )
 	{
-		vkDestroyDescriptorPool( device, descPool, nullptr );
-		descPool = VK_NULL_HANDLE;
+		vkDestroyDescriptorPool( GetVkDevice(), descPool, null );
+		descPool = Default;
 	}
 
 	if ( debugOutputBuf )
 	{
-		vkDestroyBuffer( device, debugOutputBuf, nullptr );
-		debugOutputBuf = VK_NULL_HANDLE;
+		vkDestroyBuffer( GetVkDevice(), debugOutputBuf, null );
+		debugOutputBuf = Default;
 	}
 
 	if ( readBackBuf )
 	{
-		vkDestroyBuffer( device, readBackBuf, nullptr );
-		readBackBuf = VK_NULL_HANDLE;
+		vkDestroyBuffer( GetVkDevice(), readBackBuf, null );
+		readBackBuf = Default;
 	}
 
 	if ( debugOutputMem )
 	{
-		vkFreeMemory( device, debugOutputMem, nullptr );
-		debugOutputMem = VK_NULL_HANDLE;
+		vkFreeMemory( GetVkDevice(), debugOutputMem, null );
+		debugOutputMem = Default;
 	}
 
 	if ( readBackMem )
 	{
-		vkFreeMemory( device, readBackMem, nullptr );
-		readBackMem = VK_NULL_HANDLE;
+		vkFreeMemory( GetVkDevice(), readBackMem, null );
+		readBackMem = Default;
 	}
 }
 
@@ -470,7 +516,7 @@ void  Device::_DestroyResources ()
 	GetMemoryTypeIndex
 =================================================
 */
-bool  Device::GetMemoryTypeIndex (uint memoryTypeBits, VkMemoryPropertyFlags flags, OUT uint &memoryTypeIndex) const
+bool  TestDevice::GetMemoryTypeIndex (uint memoryTypeBits, VkMemoryPropertyFlags flags, OUT uint &memoryTypeIndex) const
 {
 	memoryTypeIndex = ~0u;
 
@@ -493,7 +539,7 @@ bool  Device::GetMemoryTypeIndex (uint memoryTypeBits, VkMemoryPropertyFlags fla
 	CheckErrors
 =================================================
 */
-bool  Device::CheckErrors (VkResult errCode, const char *vkcall, const char *func, const char *file, int line)
+bool  TestDevice::CheckErrors (VkResult errCode, const char *vkcall, const char *func, const char *file, int line)
 {
 	if ( errCode == VK_SUCCESS )
 		return true;
@@ -501,7 +547,7 @@ bool  Device::CheckErrors (VkResult errCode, const char *vkcall, const char *fun
 	#define VK1_CASE_ERR( _code_ ) \
 		case _code_ :	msg += #_code_;  break;
 		
-	string	msg( "Vulkan error: " );
+	String	msg( "Vulkan error: " );
 
 	switch ( errCode )
 	{
@@ -539,7 +585,7 @@ bool  Device::CheckErrors (VkResult errCode, const char *vkcall, const char *fun
 		VK1_CASE_ERR( VK_ERROR_UNKNOWN )
 		case VK_SUCCESS :
 		case VK_RESULT_MAX_ENUM :
-		default :	msg = msg + "unknown (" + to_string(int(errCode)) + ')';  break;
+		default :	msg = msg + "unknown (" + ToString(int(errCode)) + ')';  break;
 	}
 	#undef VK1_CASE_ERR
 		
@@ -554,14 +600,14 @@ bool  Device::CheckErrors (VkResult errCode, const char *vkcall, const char *fun
 	_ValidateInstanceVersion
 =================================================
 */
-void  Device::_ValidateInstanceVersion (INOUT uint &version) const
+void  TestDevice::_ValidateInstanceVersion (INOUT uint &version) const
 {
 	const uint	min_ver		= VK_API_VERSION_1_0;
 	uint		current_ver	= 0;
 
-	VK_CALL( vkEnumerateInstanceVersion( OUT &current_ver ));
+	VK_CHECK( vkEnumerateInstanceVersion( OUT &current_ver ));
 
-	version = min( version, max( min_ver, current_ver ));
+	version = Min( version, Max( min_ver, current_ver ));
 }
 
 /*
@@ -569,13 +615,13 @@ void  Device::_ValidateInstanceVersion (INOUT uint &version) const
 	_ValidateInstanceLayers
 =================================================
 */
-void  Device::_ValidateInstanceLayers (INOUT vector<const char*> &layers) const
+void  TestDevice::_ValidateInstanceLayers (INOUT Array<const char*> &layers) const
 {
-	vector<VkLayerProperties> inst_layers;
+	Array<VkLayerProperties> inst_layers;
 
 	// load supported layers
 	uint	count = 0;
-	VK_CALL( vkEnumerateInstanceLayerProperties( OUT &count, nullptr ));
+	VK_CHECK( vkEnumerateInstanceLayerProperties( OUT &count, null ));
 
 	if ( count == 0 )
 	{
@@ -584,7 +630,7 @@ void  Device::_ValidateInstanceLayers (INOUT vector<const char*> &layers) const
 	}
 
 	inst_layers.resize( count );
-	VK_CALL( vkEnumerateInstanceLayerProperties( OUT &count, OUT inst_layers.data() ));
+	VK_CHECK( vkEnumerateInstanceLayerProperties( OUT &count, OUT inst_layers.data() ));
 
 
 	// validate
@@ -594,7 +640,7 @@ void  Device::_ValidateInstanceLayers (INOUT vector<const char*> &layers) const
 
 		for (auto& prop : inst_layers)
 		{
-			if ( string(*iter) == prop.layerName ) {
+			if ( String(*iter) == prop.layerName ) {
 				found = true;
 				break;
 			}
@@ -616,14 +662,14 @@ void  Device::_ValidateInstanceLayers (INOUT vector<const char*> &layers) const
 	_ValidateInstanceExtensions
 =================================================
 */
-void  Device::_ValidateInstanceExtensions (INOUT vector<const char*> &extensions) const
+void  TestDevice::_ValidateInstanceExtensions (INOUT Array<const char*> &extensions) const
 {
-	unordered_set<string>	instance_extensions;
+	HashSet<String>		instance_extensions;
 
 
 	// load supported extensions
 	uint	count = 0;
-	VK_CALL( vkEnumerateInstanceExtensionProperties( nullptr, OUT &count, nullptr ));
+	VK_CHECK( vkEnumerateInstanceExtensionProperties( null, OUT &count, null ));
 
 	if ( count == 0 )
 	{
@@ -631,20 +677,20 @@ void  Device::_ValidateInstanceExtensions (INOUT vector<const char*> &extensions
 		return;
 	}
 
-	vector< VkExtensionProperties >		inst_ext;
+	Array< VkExtensionProperties >		inst_ext;
 	inst_ext.resize( count );
 
-	VK_CALL( vkEnumerateInstanceExtensionProperties( nullptr, OUT &count, OUT inst_ext.data() ));
+	VK_CHECK( vkEnumerateInstanceExtensionProperties( null, OUT &count, OUT inst_ext.data() ));
 
 	for (auto& ext : inst_ext) {
-		instance_extensions.insert( string(ext.extensionName) );
+		instance_extensions.insert( String(ext.extensionName) );
 	}
 
 
 	// validate
 	for (auto iter = extensions.begin(); iter != extensions.end();)
 	{
-		if ( instance_extensions.find( string{*iter} ) == instance_extensions.end() )
+		if ( instance_extensions.find( String{*iter} ) == instance_extensions.end() )
 		{
 			std::cout << "Vulkan instance extension \"" << (*iter) << "\" not supported and will be removed" << std::endl;
 
@@ -660,11 +706,11 @@ void  Device::_ValidateInstanceExtensions (INOUT vector<const char*> &extensions
 	_ValidateDeviceExtensions
 =================================================
 */
-void  Device::_ValidateDeviceExtensions (INOUT vector<const char*> &extensions) const
+void  TestDevice::_ValidateDeviceExtensions (INOUT Array<const char*> &extensions) const
 {
 	// load supported device extensions
 	uint	count = 0;
-	VK_CALL( vkEnumerateDeviceExtensionProperties( physicalDevice, nullptr, OUT &count, nullptr ));
+	VK_CHECK( vkEnumerateDeviceExtensionProperties( physicalDevice, null, OUT &count, null ));
 
 	if ( count == 0 )
 	{
@@ -672,10 +718,10 @@ void  Device::_ValidateDeviceExtensions (INOUT vector<const char*> &extensions) 
 		return;
 	}
 
-	vector< VkExtensionProperties >	dev_ext;
+	Array< VkExtensionProperties >	dev_ext;
 	dev_ext.resize( count );
 
-	VK_CALL( vkEnumerateDeviceExtensionProperties( physicalDevice, nullptr, OUT &count, OUT dev_ext.data() ));
+	VK_CHECK( vkEnumerateDeviceExtensionProperties( physicalDevice, null, OUT &count, OUT dev_ext.data() ));
 
 
 	// validate
@@ -685,7 +731,7 @@ void  Device::_ValidateDeviceExtensions (INOUT vector<const char*> &extensions) 
 
 		for (auto& ext : dev_ext)
 		{
-			if ( string(*iter) == ext.extensionName )
+			if ( String(*iter) == ext.extensionName )
 			{
 				found = true;
 				break;
@@ -708,24 +754,25 @@ void  Device::_ValidateDeviceExtensions (INOUT vector<const char*> &extensions) 
 	Compile
 =================================================
 */
-bool  Device::Compile  (OUT VkShaderModule &		shaderModule,
-						vector<const char *>		source,
-						EShLanguage					shaderType,
-						ETraceMode					mode,
-						uint						dbgBufferSetIndex,
-						EShTargetLanguageVersion	spvVersion)
+bool  TestDevice::Compile  (OUT VkShaderModule &		shaderModule,
+							Array<const char *>			source,
+							EShLanguage					shaderType,
+							ETraceMode					mode,
+							uint						dbgBufferSetIndex)
 {
-	vector<const char *>	shader_src;
 	const bool				debuggable	= dbgBufferSetIndex != ~0u;
-	unique_ptr<ShaderTrace>	debug_info	{ debuggable ? new ShaderTrace{} : nullptr };
-	const string			header		= "#version 460 core\n"
+	Unique<ShaderTrace>		debug_info	{ debuggable ? new ShaderTrace{} : null };
+	const String			header		= "#version 460 core\n"
 										  "#extension GL_ARB_separate_shader_objects : require\n"
 										  "#extension GL_ARB_shading_language_420pack : require\n";
-	
-	shader_src.push_back( header.data() );
-	shader_src.insert( shader_src.end(), source.begin(), source.end() );
 
-	if ( not _Compile( OUT _tempBuf, OUT debug_info.get(), dbgBufferSetIndex, shader_src, shaderType, mode, spvVersion ))
+	source.insert( source.begin(), header.data() );
+
+	auto	spv_version = glslang::EShTargetSpv_1_3;
+	if ( shaderType >= EShLangRayGen )
+		spv_version = glslang::EShTargetSpv_1_4;
+
+	if ( not _Compile( OUT _tempBuf, OUT debug_info.get(), dbgBufferSetIndex, source, shaderType, mode, spv_version ))
 		return false;
 
 	VkShaderModuleCreateInfo	info = {};
@@ -734,8 +781,8 @@ bool  Device::Compile  (OUT VkShaderModule &		shaderModule,
 	info.pCode		= _tempBuf.data();
 	info.codeSize	= sizeof(_tempBuf[0]) * _tempBuf.size();
 
-	VK_CHECK( vkCreateShaderModule( device, &info, nullptr, OUT &shaderModule ));
-	tempHandles.emplace_back( EHandleType::Shader, uint64_t(shaderModule) );
+	VK_CHECK_ERR( vkCreateShaderModule( GetVkDevice(), &info, null, OUT &shaderModule ));
+	tempHandles.emplace_back( EHandleType::Shader, ulong(shaderModule) );
 
 	if ( debuggable ) {
 		_debuggableShaders.insert_or_assign( shaderModule, debug_info.release() );
@@ -748,14 +795,16 @@ bool  Device::Compile  (OUT VkShaderModule &		shaderModule,
 	_Compile
 =================================================
 */
-bool  Device::_Compile (OUT vector<uint>&			spirvData,
+bool  TestDevice::_Compile (OUT Array<uint>&			spirvData,
 						OUT ShaderTrace*			dbgInfo,
 						uint						dbgBufferSetIndex,
-						vector<const char *>		source,
+						Array<const char *>			source,
 						EShLanguage					shaderType,
 						ETraceMode					mode,
-						EShTargetLanguageVersion	spvVersion)
+						glslang::EShTargetLanguageVersion	spvVersion)
 {
+	using namespace glslang;
+
 	EShMessages				messages		= EShMsgDefault;
 	TProgram				program;
 	TShader					shader			{ shaderType };
@@ -770,15 +819,15 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 
 	if ( not shader.parse( &builtin_res, 460, ECoreProfile, false, true, messages ))
 	{
-		std::cout << shader.getInfoLog() << std::endl;
+		//AE_LOGI( shader.getInfoLog() );
 		return false;
 	}
-		
+
 	program.addShader( &shader );
 
-	if ( not program.link( messages ) )
+	if ( not program.link( messages ))
 	{
-		std::cout << program.getInfoLog() << std::endl;
+		//AE_LOGI( program.getInfoLog() );
 		return false;
 	}
 
@@ -797,12 +846,12 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 
 			case ETraceMode::Performance :
 				CHECK_ERR( dbgInfo->InsertFunctionProfiler( INOUT *intermediate, dbgBufferSetIndex,
-														    shaderClockFeat.shaderSubgroupClock,
-														    shaderClockFeat.shaderDeviceClock ));
+															GetShaderClockFeats().shaderSubgroupClock,
+															GetShaderClockFeats().shaderDeviceClock ));
 				break;
-				
+
 			case ETraceMode::TimeMap :
-				CHECK_ERR( shaderClockFeat.shaderDeviceClock );
+				CHECK_ERR( GetShaderClockFeats().shaderDeviceClock );
 				CHECK_ERR( dbgInfo->InsertShaderClockHeatmap( INOUT *intermediate, dbgBufferSetIndex ));
 				break;
 
@@ -811,8 +860,10 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 				RETURN_ERR( "unknown shader trace mode" );
 		}
 		END_ENUM_CHECKS();
-	
-		dbgInfo->SetSource( source.data(), nullptr, source.size() );
+
+		for (auto* src : source) {
+			dbgInfo->AddSource( StringView{src} );
+		}
 	}
 
 	SpvOptions				spv_options;
@@ -822,15 +873,15 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 	spv_options.disableOptimizer	= true;
 	spv_options.optimizeSize		= false;
 	spv_options.validate			= true;
-		
+
 	spirvData.clear();
 	GlslangToSpv( *intermediate, OUT spirvData, &logger, &spv_options );
 
-	//std::cout << logger.getAllMessages() << std::endl;
+	//AE_LOGI( logger.getAllMessages() );
 	CHECK_ERR( spirvData.size() );
-	
+
 	// for debugging
-	#if 0 //defined(ENABLE_SPIRV_CROSS)
+	#if 0 //def AE_ENABLE_SPIRV_CROSS
 	//if ( logger.getAllMessages().size() )
 	{
 		spirv_cross::CompilerGLSL			compiler {spirvData.data(), spirvData.size()};
@@ -849,10 +900,10 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 		opt.fragment.default_float_precision	= spirv_cross::CompilerGLSL::Options::Precision::Highp;
 		opt.fragment.default_int_precision		= spirv_cross::CompilerGLSL::Options::Precision::Highp;
 
-		compiler.set_common_options(opt);
+		compiler.set_common_options( opt );
 
-		std::string	glsl_src = compiler.compile();
-		std::cout << glsl_src << std::endl;
+		String	glsl_src = compiler.compile();	// throw
+		AE_LOGI( glsl_src );
 	}
 	#endif
 
@@ -860,16 +911,16 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 	#if 0 //defined(ENABLE_OPT) 
 	{
 		spv_context	ctx = spvContextCreate( SPV_ENV_VULKAN_1_1 );
-		CHECK_ERR( ctx != nullptr );
+		CHECK_ERR( ctx != null );
 
-		spv_text		text		= nullptr;
-		spv_diagnostic	diagnostic	= nullptr;
+		spv_text		text		= null;
+		spv_diagnostic	diagnostic	= null;
 
 		if ( spvBinaryToText( ctx, spirvData.data(), spirvData.size(), 0, &text, &diagnostic ) == SPV_SUCCESS )
 		{
-			std::cout << std::string{ text->str, text->length } << std::endl;
+			AE_LOGI( String{ text->str, text->length });
 		}
-		
+
 		spvTextDestroy( text );
 		spvDiagnosticDestroy( diagnostic );
 		spvContextDestroy( ctx );
@@ -883,12 +934,12 @@ bool  Device::_Compile (OUT vector<uint>&			spirvData,
 	_GetDebugOutput
 =================================================
 */
-bool  Device::_GetDebugOutput (VkShaderModule shaderModule, const void *ptr, VkDeviceSize maxSize, OUT vector<string> &result) const
+bool  TestDevice::_GetDebugOutput (VkShaderModule shaderModule, const void *ptr, VkDeviceSize maxSize, OUT Array<String> &result) const
 {
 	auto	iter = _debuggableShaders.find( shaderModule );
 	CHECK_ERR( iter != _debuggableShaders.end() );
 
-	return iter->second->ParseShaderTrace( ptr, maxSize, OUT result );
+	return iter->second->ParseShaderTrace( ptr, Bytes{maxSize}, ShaderTrace::ELogFormat::Text, OUT result );
 }
 
 /*
@@ -896,7 +947,7 @@ bool  Device::_GetDebugOutput (VkShaderModule shaderModule, const void *ptr, VkD
 	CreateDebugDescSetLayout
 =================================================
 */
-bool  Device::CreateDebugDescriptorSet (VkShaderStageFlags stages, OUT VkDescriptorSetLayout &dsLayout, OUT VkDescriptorSet &descSet)
+bool  TestDevice::CreateDebugDescriptorSet (VkShaderStageFlags stages, OUT VkDescriptorSetLayout &dsLayout, OUT VkDescriptorSet &descSet)
 {
 	// create layout
 	{
@@ -911,10 +962,10 @@ bool  Device::CreateDebugDescriptorSet (VkShaderStageFlags stages, OUT VkDescrip
 		info.bindingCount	= 1;
 		info.pBindings		= &binding;
 
-		VK_CHECK( vkCreateDescriptorSetLayout( device, &info, nullptr, OUT &dsLayout ));
-		tempHandles.emplace_back( EHandleType::DescriptorSetLayout, uint64_t(dsLayout) );
+		VK_CHECK_ERR( vkCreateDescriptorSetLayout( GetVkDevice(), &info, null, OUT &dsLayout ));
+		tempHandles.emplace_back( EHandleType::DescriptorSetLayout, ulong(dsLayout) );
 	}
-	
+
 	// allocate descriptor set
 	{
 		VkDescriptorSetAllocateInfo		info = {};
@@ -923,7 +974,7 @@ bool  Device::CreateDebugDescriptorSet (VkShaderStageFlags stages, OUT VkDescrip
 		info.descriptorSetCount	= 1;
 		info.pSetLayouts		= &dsLayout;
 
-		VK_CHECK( vkAllocateDescriptorSets( device, &info, OUT &descSet ));
+		VK_CHECK_ERR( vkAllocateDescriptorSets( GetVkDevice(), &info, OUT &descSet ));
 	}
 
 	// update descriptor set
@@ -931,7 +982,7 @@ bool  Device::CreateDebugDescriptorSet (VkShaderStageFlags stages, OUT VkDescrip
 		VkDescriptorBufferInfo	buffer	= {};
 		buffer.buffer	= debugOutputBuf;
 		buffer.range	= VK_WHOLE_SIZE;
-		
+
 		VkWriteDescriptorSet	write	= {};
 		write.sType				= VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		write.dstSet			= descSet;
@@ -939,9 +990,64 @@ bool  Device::CreateDebugDescriptorSet (VkShaderStageFlags stages, OUT VkDescrip
 		write.descriptorCount	= 1;
 		write.descriptorType	= VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		write.pBufferInfo		= &buffer;
-		
-		vkUpdateDescriptorSets( device, 1, &write, 0, nullptr );
+
+		vkUpdateDescriptorSets( GetVkDevice(), 1, &write, 0, null );
 	}
+	return true;
+}
+
+/*
+=================================================
+	CreateStorageImage
+=================================================
+*/
+bool  TestDevice::CreateStorageImage (VkFormat format, uint width, uint height, VkImageUsageFlags imageUsage,
+									  OUT VkImage &outImage, OUT VkImageView &outView)
+{
+	VkImageCreateInfo	image_ci = {};
+	image_ci.sType			= VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	image_ci.flags			= 0;
+	image_ci.imageType		= VK_IMAGE_TYPE_2D;
+	image_ci.format			= format;
+	image_ci.extent			= { width, height, 1 };
+	image_ci.mipLevels		= 1;
+	image_ci.arrayLayers	= 1;
+	image_ci.samples		= VK_SAMPLE_COUNT_1_BIT;
+	image_ci.tiling			= VK_IMAGE_TILING_OPTIMAL;
+	image_ci.usage			= imageUsage | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	image_ci.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
+	image_ci.initialLayout	= VK_IMAGE_LAYOUT_UNDEFINED;
+
+	VK_CHECK_ERR( vkCreateImage( GetVkDevice(), &image_ci, null, OUT &outImage ));
+	tempHandles.emplace_back( EHandleType::Image, ulong(outImage) );
+
+	VkMemoryRequirements	mem_req;
+	vkGetImageMemoryRequirements( GetVkDevice(), outImage, OUT &mem_req );
+
+	// allocate GetVkDevice() local memory
+	VkMemoryAllocateInfo	alloc_info = {};
+	alloc_info.sType			= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	alloc_info.allocationSize	= mem_req.size;
+	CHECK_ERR( GetMemoryTypeIndex( mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, OUT alloc_info.memoryTypeIndex ));
+
+	VkDeviceMemory	image_mem;
+	VK_CHECK_ERR( vkAllocateMemory( GetVkDevice(), &alloc_info, null, OUT &image_mem ));
+	tempHandles.emplace_back( EHandleType::Memory, ulong(image_mem) );
+
+	VK_CHECK_ERR( vkBindImageMemory( GetVkDevice(), outImage, image_mem, 0 ));
+
+	VkImageViewCreateInfo	view_ci = {};
+	view_ci.sType				= VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	view_ci.flags				= 0;
+	view_ci.image				= outImage;
+	view_ci.viewType			= VK_IMAGE_VIEW_TYPE_2D;
+	view_ci.format				= format;
+	view_ci.components			= { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
+	view_ci.subresourceRange	= { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+	VK_CHECK_ERR( vkCreateImageView( GetVkDevice(), &view_ci, null, OUT &outView ));
+	tempHandles.emplace_back( EHandleType::ImageView, ulong(outView) );
+
 	return true;
 }
 
@@ -950,9 +1056,9 @@ bool  Device::CreateDebugDescriptorSet (VkShaderStageFlags stages, OUT VkDescrip
 	CreateRenderTarget
 =================================================
 */
-bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height, VkImageUsageFlags imageUsage,
-								  OUT VkRenderPass &outRenderPass, OUT VkImage &outImage,
-								  OUT VkFramebuffer &outFramebuffer)
+bool  TestDevice::CreateRenderTarget (VkFormat colorFormat, uint width, uint height, VkImageUsageFlags imageUsage,
+									  OUT VkRenderPass &outRenderPass, OUT VkImage &outImage,
+									  OUT VkFramebuffer &outFramebuffer)
 {
 	// create image
 	{
@@ -966,31 +1072,31 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 		info.arrayLayers	= 1;
 		info.samples		= VK_SAMPLE_COUNT_1_BIT;
 		info.tiling			= VK_IMAGE_TILING_OPTIMAL;
-		info.usage			= imageUsage | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		info.usage			= imageUsage | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 		info.initialLayout	= VK_IMAGE_LAYOUT_UNDEFINED;
 
-		VK_CHECK( vkCreateImage( device, &info, nullptr, OUT &outImage ));
-		tempHandles.emplace_back( EHandleType::Image, uint64_t(outImage) );
+		VK_CHECK_ERR( vkCreateImage( GetVkDevice(), &info, null, OUT &outImage ));
+		tempHandles.emplace_back( EHandleType::Image, ulong(outImage) );
 
 		VkMemoryRequirements	mem_req;
-		vkGetImageMemoryRequirements( device, outImage, OUT &mem_req );
-		
-		// allocate device local memory
+		vkGetImageMemoryRequirements( GetVkDevice(), outImage, OUT &mem_req );
+
+		// allocate GetVkDevice() local memory
 		VkMemoryAllocateInfo	alloc_info = {};
 		alloc_info.sType			= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		alloc_info.allocationSize	= mem_req.size;
 		CHECK_ERR( GetMemoryTypeIndex( mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, OUT alloc_info.memoryTypeIndex ));
 
 		VkDeviceMemory	image_mem;
-		VK_CHECK( vkAllocateMemory( device, &alloc_info, nullptr, OUT &image_mem ));
-		tempHandles.emplace_back( EHandleType::Memory, uint64_t(image_mem) );
+		VK_CHECK_ERR( vkAllocateMemory( GetVkDevice(), &alloc_info, null, OUT &image_mem ));
+		tempHandles.emplace_back( EHandleType::Memory, ulong(image_mem) );
 
-		VK_CHECK( vkBindImageMemory( device, outImage, image_mem, 0 ));
+		VK_CHECK_ERR( vkBindImageMemory( GetVkDevice(), outImage, image_mem, 0 ));
 	}
 
 	// create image view
-	VkImageView		view = VK_NULL_HANDLE;
+	VkImageView		view = Default;
 	{
 		VkImageViewCreateInfo	info = {};
 		info.sType				= VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1001,8 +1107,8 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 		info.components			= { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
 		info.subresourceRange	= { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-		VK_CHECK( vkCreateImageView( device, &info, nullptr, OUT &view ));
-		tempHandles.emplace_back( EHandleType::ImageView, uint64_t(view) );
+		VK_CHECK_ERR( vkCreateImageView( GetVkDevice(), &info, null, OUT &view ));
+		tempHandles.emplace_back( EHandleType::ImageView, ulong(view) );
 	}
 
 	// create renderpass
@@ -1038,7 +1144,7 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 		dependencies[0].dstSubpass		= 0;
 		dependencies[0].srcStageMask	= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 		dependencies[0].dstStageMask	= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependencies[0].srcAccessMask	= VK_ACCESS_MEMORY_READ_BIT;
+		dependencies[0].srcAccessMask	= 0;
 		dependencies[0].dstAccessMask	= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		dependencies[0].dependencyFlags	= VK_DEPENDENCY_BY_REGION_BIT;
 
@@ -1055,17 +1161,17 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 		VkRenderPassCreateInfo	info = {};
 		info.sType				= VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		info.flags				= 0;
-		info.attachmentCount	= uint(std::size( attachments ));
+		info.attachmentCount	= uint(CountOf( attachments ));
 		info.pAttachments		= attachments;
-		info.subpassCount		= uint(std::size( subpasses ));
+		info.subpassCount		= uint(CountOf( subpasses ));
 		info.pSubpasses			= subpasses;
-		info.dependencyCount	= uint(std::size( dependencies ));
+		info.dependencyCount	= uint(CountOf( dependencies ));
 		info.pDependencies		= dependencies;
 
-		VK_CHECK( vkCreateRenderPass( device, &info, nullptr, OUT &outRenderPass ));
-		tempHandles.emplace_back( EHandleType::RenderPass, uint64_t(outRenderPass) );
+		VK_CHECK_ERR( vkCreateRenderPass( GetVkDevice(), &info, null, OUT &outRenderPass ));
+		tempHandles.emplace_back( EHandleType::RenderPass, ulong(outRenderPass) );
 	}
-	
+
 	// create framebuffer
 	{
 		VkFramebufferCreateInfo		info = {};
@@ -1078,8 +1184,8 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 		info.height				= height;
 		info.layers				= 1;
 
-		VK_CHECK( vkCreateFramebuffer( device, &info, nullptr, OUT &outFramebuffer ));
-		tempHandles.emplace_back( EHandleType::Framebuffer, uint64_t(outFramebuffer) );
+		VK_CHECK_ERR( vkCreateFramebuffer( GetVkDevice(), &info, null, OUT &outFramebuffer ));
+		tempHandles.emplace_back( EHandleType::Framebuffer, ulong(outFramebuffer) );
 	}
 	return true;
 }
@@ -1089,9 +1195,9 @@ bool  Device::CreateRenderTarget (VkFormat colorFormat, uint width, uint height,
 	CreateGraphicsPipelineVar1
 =================================================
 */
-bool  Device::CreateGraphicsPipelineVar1 (VkShaderModule vertShader, VkShaderModule fragShader,
-										  VkDescriptorSetLayout dsLayout, VkRenderPass renderPass,
-										  OUT VkPipelineLayout &outPipelineLayout, OUT VkPipeline &outPipeline)
+bool  TestDevice::CreateGraphicsPipelineVar1 (VkShaderModule vertShader, VkShaderModule fragShader,
+											  VkDescriptorSetLayout dsLayout, VkRenderPass renderPass,
+											  OUT VkPipelineLayout &outPipelineLayout, OUT VkPipeline &outPipeline)
 {
 	// create pipeline layout
 	{
@@ -1100,10 +1206,10 @@ bool  Device::CreateGraphicsPipelineVar1 (VkShaderModule vertShader, VkShaderMod
 		info.setLayoutCount			= 1;
 		info.pSetLayouts			= &dsLayout;
 		info.pushConstantRangeCount	= 0;
-		info.pPushConstantRanges	= nullptr;
+		info.pPushConstantRanges	= null;
 
-		VK_CHECK( vkCreatePipelineLayout( device, &info, nullptr, OUT &outPipelineLayout ));
-		tempHandles.emplace_back( EHandleType::PipelineLayout, uint64_t(outPipelineLayout) );
+		VK_CHECK_ERR( vkCreatePipelineLayout( GetVkDevice(), &info, null, OUT &outPipelineLayout ));
+		tempHandles.emplace_back( EHandleType::PipelineLayout, ulong(outPipelineLayout) );
 	}
 
 	VkPipelineShaderStageCreateInfo			stages[2] = {};
@@ -1118,7 +1224,7 @@ bool  Device::CreateGraphicsPipelineVar1 (VkShaderModule vertShader, VkShaderMod
 
 	VkPipelineVertexInputStateCreateInfo	vertex_input = {};
 	vertex_input.sType		= VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	
+
 	VkPipelineInputAssemblyStateCreateInfo	input_assembly = {};
 	input_assembly.sType	= VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	input_assembly.topology	= VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
@@ -1159,13 +1265,13 @@ bool  Device::CreateGraphicsPipelineVar1 (VkShaderModule vertShader, VkShaderMod
 	VkDynamicState							dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 	VkPipelineDynamicStateCreateInfo		dynamic_state = {};
 	dynamic_state.sType				= VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamic_state.dynamicStateCount	= uint(std::size( dynamic_states ));
+	dynamic_state.dynamicStateCount	= uint(CountOf( dynamic_states ));
 	dynamic_state.pDynamicStates	= dynamic_states;
 
 	// create pipeline
 	VkGraphicsPipelineCreateInfo	info = {};
 	info.sType					= VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	info.stageCount				= uint(std::size( stages ));
+	info.stageCount				= uint(CountOf( stages ));
 	info.pStages				= stages;
 	info.pViewportState			= &viewport;
 	info.pVertexInputState		= &vertex_input;
@@ -1179,8 +1285,8 @@ bool  Device::CreateGraphicsPipelineVar1 (VkShaderModule vertShader, VkShaderMod
 	info.renderPass				= renderPass;
 	info.subpass				= 0;
 
-	VK_CHECK( vkCreateGraphicsPipelines( device, VK_NULL_HANDLE, 1, &info, nullptr, OUT &outPipeline ));
-	tempHandles.emplace_back( EHandleType::Pipeline, uint64_t(outPipeline) );
+	VK_CHECK_ERR( vkCreateGraphicsPipelines( GetVkDevice(), Default, 1, &info, null, OUT &outPipeline ));
+	tempHandles.emplace_back( EHandleType::Pipeline, ulong(outPipeline) );
 
 	return true;
 }
@@ -1190,9 +1296,9 @@ bool  Device::CreateGraphicsPipelineVar1 (VkShaderModule vertShader, VkShaderMod
 	CreateMeshPipelineVar1
 =================================================
 */
-bool  Device::CreateGraphicsPipelineVar2 (VkShaderModule vertShader, VkShaderModule tessContShader, VkShaderModule tessEvalShader,
-										  VkShaderModule fragShader, VkDescriptorSetLayout dsLayout, VkRenderPass renderPass, uint patchSize,
-										  OUT VkPipelineLayout &outPipelineLayout, OUT VkPipeline &outPipeline)
+bool  TestDevice::CreateGraphicsPipelineVar2 (VkShaderModule vertShader, VkShaderModule tessContShader, VkShaderModule tessEvalShader,
+											  VkShaderModule fragShader, VkDescriptorSetLayout dsLayout, VkRenderPass renderPass, uint patchSize,
+											  OUT VkPipelineLayout &outPipelineLayout, OUT VkPipeline &outPipeline)
 {
 	// create pipeline layout
 	{
@@ -1201,10 +1307,10 @@ bool  Device::CreateGraphicsPipelineVar2 (VkShaderModule vertShader, VkShaderMod
 		info.setLayoutCount			= 1;
 		info.pSetLayouts			= &dsLayout;
 		info.pushConstantRangeCount	= 0;
-		info.pPushConstantRanges	= nullptr;
+		info.pPushConstantRanges	= null;
 
-		VK_CHECK( vkCreatePipelineLayout( device, &info, nullptr, OUT &outPipelineLayout ));
-		tempHandles.emplace_back( EHandleType::PipelineLayout, uint64_t(outPipelineLayout) );
+		VK_CHECK_ERR( vkCreatePipelineLayout( GetVkDevice(), &info, null, OUT &outPipelineLayout ));
+		tempHandles.emplace_back( EHandleType::PipelineLayout, ulong(outPipelineLayout) );
 	}
 
 	VkPipelineShaderStageCreateInfo			stages[4] = {};
@@ -1227,7 +1333,7 @@ bool  Device::CreateGraphicsPipelineVar2 (VkShaderModule vertShader, VkShaderMod
 
 	VkPipelineVertexInputStateCreateInfo	vertex_input = {};
 	vertex_input.sType		= VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	
+
 	VkPipelineInputAssemblyStateCreateInfo	input_assembly = {};
 	input_assembly.sType	= VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	input_assembly.topology	= VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
@@ -1268,7 +1374,7 @@ bool  Device::CreateGraphicsPipelineVar2 (VkShaderModule vertShader, VkShaderMod
 	VkDynamicState							dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 	VkPipelineDynamicStateCreateInfo		dynamic_state = {};
 	dynamic_state.sType				= VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamic_state.dynamicStateCount	= uint(std::size( dynamic_states ));
+	dynamic_state.dynamicStateCount	= uint(CountOf( dynamic_states ));
 	dynamic_state.pDynamicStates	= dynamic_states;
 
 	VkPipelineTessellationStateCreateInfo	tess_state = {};
@@ -1278,7 +1384,7 @@ bool  Device::CreateGraphicsPipelineVar2 (VkShaderModule vertShader, VkShaderMod
 	// create pipeline
 	VkGraphicsPipelineCreateInfo	info = {};
 	info.sType					= VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	info.stageCount				= uint(std::size( stages ));
+	info.stageCount				= uint(CountOf( stages ));
 	info.pStages				= stages;
 	info.pViewportState			= &viewport;
 	info.pVertexInputState		= &vertex_input;
@@ -1293,8 +1399,8 @@ bool  Device::CreateGraphicsPipelineVar2 (VkShaderModule vertShader, VkShaderMod
 	info.renderPass				= renderPass;
 	info.subpass				= 0;
 
-	VK_CHECK( vkCreateGraphicsPipelines( device, VK_NULL_HANDLE, 1, &info, nullptr, OUT &outPipeline ));
-	tempHandles.emplace_back( EHandleType::Pipeline, uint64_t(outPipeline) );
+	VK_CHECK_ERR( vkCreateGraphicsPipelines( GetVkDevice(), Default, 1, &info, null, OUT &outPipeline ));
+	tempHandles.emplace_back( EHandleType::Pipeline, ulong(outPipeline) );
 
 	return true;
 }
@@ -1304,9 +1410,9 @@ bool  Device::CreateGraphicsPipelineVar2 (VkShaderModule vertShader, VkShaderMod
 	CreateMeshPipelineVar1
 =================================================
 */
-bool  Device::CreateMeshPipelineVar1 (VkShaderModule meshShader, VkShaderModule fragShader,
-									  VkDescriptorSetLayout dsLayout, VkRenderPass renderPass,
-									  OUT VkPipelineLayout &outPipelineLayout, OUT VkPipeline &outPipeline)
+bool  TestDevice::CreateMeshPipelineVar1 (VkShaderModule meshShader, VkShaderModule fragShader,
+										  VkDescriptorSetLayout dsLayout, VkRenderPass renderPass,
+										  OUT VkPipelineLayout &outPipelineLayout, OUT VkPipeline &outPipeline)
 {
 	// create pipeline layout
 	{
@@ -1315,15 +1421,15 @@ bool  Device::CreateMeshPipelineVar1 (VkShaderModule meshShader, VkShaderModule 
 		info.setLayoutCount			= 1;
 		info.pSetLayouts			= &dsLayout;
 		info.pushConstantRangeCount	= 0;
-		info.pPushConstantRanges	= nullptr;
+		info.pPushConstantRanges	= null;
 
-		VK_CHECK( vkCreatePipelineLayout( device, &info, nullptr, OUT &outPipelineLayout ));
-		tempHandles.emplace_back( EHandleType::PipelineLayout, uint64_t(outPipelineLayout) );
+		VK_CHECK_ERR( vkCreatePipelineLayout( GetVkDevice(), &info, null, OUT &outPipelineLayout ));
+		tempHandles.emplace_back( EHandleType::PipelineLayout, ulong(outPipelineLayout) );
 	}
 
 	VkPipelineShaderStageCreateInfo			stages[2] = {};
 	stages[0].sType		= VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	stages[0].stage		= VK_SHADER_STAGE_MESH_BIT_NV;
+	stages[0].stage		= VK_SHADER_STAGE_MESH_BIT_EXT;
 	stages[0].module	= meshShader;
 	stages[0].pName		= "main";
 	stages[1].sType		= VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -1333,7 +1439,7 @@ bool  Device::CreateMeshPipelineVar1 (VkShaderModule meshShader, VkShaderModule 
 
 	VkPipelineVertexInputStateCreateInfo	vertex_input = {};
 	vertex_input.sType		= VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	
+
 	VkPipelineInputAssemblyStateCreateInfo	input_assembly = {};
 	input_assembly.sType	= VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	input_assembly.topology	= VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -1374,13 +1480,13 @@ bool  Device::CreateMeshPipelineVar1 (VkShaderModule meshShader, VkShaderModule 
 	VkDynamicState							dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 	VkPipelineDynamicStateCreateInfo		dynamic_state = {};
 	dynamic_state.sType				= VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamic_state.dynamicStateCount	= uint(std::size( dynamic_states ));
+	dynamic_state.dynamicStateCount	= uint(CountOf( dynamic_states ));
 	dynamic_state.pDynamicStates	= dynamic_states;
 
 	// create pipeline
 	VkGraphicsPipelineCreateInfo	info = {};
 	info.sType					= VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	info.stageCount				= uint(std::size( stages ));
+	info.stageCount				= uint(CountOf( stages ));
 	info.pStages				= stages;
 	info.pViewportState			= &viewport;
 	info.pVertexInputState		= &vertex_input;		// ignored in mesh shader
@@ -1394,8 +1500,8 @@ bool  Device::CreateMeshPipelineVar1 (VkShaderModule meshShader, VkShaderModule 
 	info.renderPass				= renderPass;
 	info.subpass				= 0;
 
-	VK_CHECK( vkCreateGraphicsPipelines( device, VK_NULL_HANDLE, 1, &info, nullptr, OUT &outPipeline ));
-	tempHandles.emplace_back( EHandleType::Pipeline, uint64_t(outPipeline) );
+	VK_CHECK_ERR( vkCreateGraphicsPipelines( GetVkDevice(), Default, 1, &info, null, OUT &outPipeline ));
+	tempHandles.emplace_back( EHandleType::Pipeline, ulong(outPipeline) );
 
 	return true;
 }
@@ -1405,23 +1511,8 @@ bool  Device::CreateMeshPipelineVar1 (VkShaderModule meshShader, VkShaderModule 
 	CreateRayTracingScene
 =================================================
 */
-bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT VkBuffer &shaderBindingTable,
-									 OUT VkAccelerationStructureNV &topLevelAS, OUT VkAccelerationStructureNV &bottomLevelAS)
+bool  TestDevice::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT RTData &outRTData)
 {
-	struct VkGeometryInstance
-	{
-		// 4x3 row-major matrix
-		float4		transformRow0;
-		float4		transformRow1;
-		float4		transformRow2;
-
-		uint		instanceId		: 24;
-		uint		mask			: 8;
-		uint		instanceOffset	: 24;
-		uint		flags			: 8;
-		uint64_t	accelerationStructureHandle;
-	};
-
 	struct MemInfo
 	{
 		VkDeviceSize			totalSize		= 0;
@@ -1431,35 +1522,40 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 
 	struct ResourceInit
 	{
-		using BindMemCallbacks_t	= vector< std::function<bool (void *)> >;
-		using DrawCallbacks_t		= vector< std::function<void (VkCommandBuffer)> >;
+		using BindMemCallbacks_t	= Array< Function<bool ()> >;
+		using DrawCallbacks_t		= Array< Function<void (VkCommandBuffer)> >;
 
-		MemInfo					host;
 		MemInfo					dev;
 		BindMemCallbacks_t		onBind;
 		DrawCallbacks_t			onUpdate;
 	};
 
-	static const float3		vertices[] = {
-		{ 0.25f, 0.25f, 0.0f },
-		{ 0.75f, 0.25f, 0.0f },
-		{ 0.50f, 0.75f, 0.0f }
+	static const float4		vertices[] = {
+		{ 0.25f, 0.25f, 0.0f, 0.0f },
+		{ 0.75f, 0.25f, 0.0f, 0.0f },
+		{ 0.50f, 0.75f, 0.0f, 0.0f }
 	};
 	static const uint		indices[] = {
 		0, 1, 2
 	};
+	static const uint		instance_count = 1;
 
-	VkBuffer		vertex_buffer;
-	VkBuffer		index_buffer;
-	VkBuffer		instance_buffer;
-	VkBuffer		scratch_buffer;
-	VkDeviceMemory	host_memory;
-	uint64_t		bottom_level_as_handle = 0;
-	VkDeviceMemory	dev_memory;
+	VkBuffer		vertex_buffer			= Default;
+	VkDeviceAddress	vertex_buffer_addr		= Default;
+	VkBuffer		index_buffer			= Default;
+	VkDeviceAddress	index_buffer_addr		= Default;
+	VkBuffer		instance_buffer			= Default;
+	VkDeviceAddress	instance_buffer_addr	= Default;
+	VkBuffer		scratch_buffer			= Default;
+	VkDeviceAddress	scratch_buffer_addr		= Default;
+	VkBuffer		blas_buffer				= Default;
+	VkDeviceAddress	blas_addr				= Default;
+	VkBuffer		tlas_buffer				= Default;
+	VkDeviceAddress	tlas_addr				= Default;
+	VkDeviceMemory	dev_memory				= Default;
 
 	ResourceInit	res;
 	res.dev.memProperty = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	res.host.memProperty = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
 	// create vertex buffer
 	{
@@ -1467,23 +1563,40 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 		info.sType			= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		info.flags			= 0;
 		info.size			= sizeof(vertices);
-		info.usage			= VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
+		info.usage			= VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+							  VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
-		VK_CHECK( vkCreateBuffer( device, &info, nullptr, OUT &vertex_buffer ));
-		
-		VkMemoryRequirements	mem_req;
-		vkGetBufferMemoryRequirements( device, vertex_buffer, OUT &mem_req );
-		
-		VkDeviceSize	offset = AlignToLarger( res.host.totalSize, mem_req.alignment );
-		res.host.totalSize		 = offset + mem_req.size;
-		res.host.memTypeBits	|= mem_req.memoryTypeBits;
+		VK_CHECK_ERR( vkCreateBuffer( GetVkDevice(), &info, null, OUT &vertex_buffer ));
 
-		res.onBind.push_back( [this, &host_memory, vertex_buffer, offset] (void *ptr) -> bool
+		VkBufferMemoryRequirementsInfo2	mem_info	= {};
+		VkMemoryRequirements2			mem_req		= {};
+
+		mem_req.sType	= VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+		mem_info.sType	= VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2;
+		mem_info.buffer	= vertex_buffer;
+
+		vkGetBufferMemoryRequirements2( GetVkDevice(), &mem_info, OUT &mem_req );
+
+		VkDeviceSize	offset	 = AlignUp( res.dev.totalSize, mem_req.memoryRequirements.alignment );
+		res.dev.totalSize		 = offset + mem_req.memoryRequirements.size;
+		res.dev.memTypeBits		|= mem_req.memoryRequirements.memoryTypeBits;
+
+		res.onBind.push_back( [this, &dev_memory, &vertex_buffer_addr, vertex_buffer, offset] () -> bool
 		{
-			std::memcpy( ((char*)ptr) + offset, vertices, sizeof(vertices) );
-			VK_CHECK( vkBindBufferMemory( device, vertex_buffer, host_memory, offset ));
+			VK_CHECK_ERR( vkBindBufferMemory( GetVkDevice(), vertex_buffer, dev_memory, offset ));
+
+			VkBufferDeviceAddressInfoKHR	buf_info = {};
+			buf_info.sType		= VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+			buf_info.buffer		= vertex_buffer;
+
+			vertex_buffer_addr = vkGetBufferDeviceAddressKHR( GetVkDevice(), &buf_info );
 			return true;
+		});
+
+		res.onUpdate.push_back( [this, vertex_buffer] (VkCommandBuffer cmdbuf)
+		{
+			vkCmdUpdateBuffer( cmdbuf, vertex_buffer, 0, sizeof(vertices), vertices );
 		});
 	}
 
@@ -1493,300 +1606,430 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 		info.sType			= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		info.flags			= 0;
 		info.size			= sizeof(indices);
-		info.usage			= VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
+		info.usage			= VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+							  VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
-		VK_CHECK( vkCreateBuffer( device, &info, nullptr, OUT &index_buffer ));
-		
-		VkMemoryRequirements	mem_req;
-		vkGetBufferMemoryRequirements( device, index_buffer, OUT &mem_req );
-		
-		VkDeviceSize	offset = AlignToLarger( res.host.totalSize, mem_req.alignment );
-		res.host.totalSize		 = offset + mem_req.size;
-		res.host.memTypeBits	|= mem_req.memoryTypeBits;
+		VK_CHECK_ERR( vkCreateBuffer( GetVkDevice(), &info, null, OUT &index_buffer ));
 
-		res.onBind.push_back( [this, index_buffer, &host_memory, offset] (void *ptr) -> bool
+		VkBufferMemoryRequirementsInfo2	mem_info	= {};
+		VkMemoryRequirements2			mem_req		= {};
+
+		mem_req.sType	= VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+		mem_info.sType	= VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2;
+		mem_info.buffer	= index_buffer;
+
+		vkGetBufferMemoryRequirements2( GetVkDevice(), &mem_info, OUT &mem_req );
+
+		VkDeviceSize	offset	 = AlignUp( res.dev.totalSize, mem_req.memoryRequirements.alignment );
+		res.dev.totalSize		 = offset + mem_req.memoryRequirements.size;
+		res.dev.memTypeBits		|= mem_req.memoryRequirements.memoryTypeBits;
+
+		res.onBind.push_back( [this, &dev_memory, &index_buffer_addr, index_buffer, offset] () -> bool
 		{
-			std::memcpy( ((char*)ptr) + offset, indices, sizeof(indices) );
-			VK_CHECK( vkBindBufferMemory( device, index_buffer, host_memory, offset ));
+			//std::memcpy( ptr + Bytes{offset}, indices, sizeof(indices) );		// TODO: wtf?
+			VK_CHECK_ERR( vkBindBufferMemory( GetVkDevice(), index_buffer, dev_memory, offset ));
+
+			VkBufferDeviceAddressInfoKHR	buf_info = {};
+			buf_info.sType		= VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+			buf_info.buffer		= index_buffer;
+
+			index_buffer_addr = vkGetBufferDeviceAddressKHR( GetVkDevice(), &buf_info );
 			return true;
+		});
+
+		res.onUpdate.push_back( [this, index_buffer] (VkCommandBuffer cmdbuf)
+		{
+			vkCmdUpdateBuffer( cmdbuf, index_buffer, 0, sizeof(indices), indices );
 		});
 	}
 
 	// create bottom level acceleration structure
+	VkAccelerationStructureBuildSizesInfoKHR	blas_size_info = {};
 	{
-		VkGeometryNV	geometry[1] = {};
-		geometry[0].sType			= VK_STRUCTURE_TYPE_GEOMETRY_NV;
-		geometry[0].geometryType	= VK_GEOMETRY_TYPE_TRIANGLES_NV;
-		geometry[0].flags			= VK_GEOMETRY_OPAQUE_BIT_NV;
-		geometry[0].geometry.aabbs.sType	= VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
-		geometry[0].geometry.triangles.sType		= VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
-		geometry[0].geometry.triangles.vertexData	= vertex_buffer;
-		geometry[0].geometry.triangles.vertexOffset	= 0;
-		geometry[0].geometry.triangles.vertexCount	= uint(std::size( vertices ));
-		geometry[0].geometry.triangles.vertexStride	= sizeof(vertices[0]);
+		VkAccelerationStructureGeometryKHR		geometry[1] = {};
+		geometry[0].sType			= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+		geometry[0].geometryType	= VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+		geometry[0].flags			= 0;
+		geometry[0].geometry.triangles.sType		= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
 		geometry[0].geometry.triangles.vertexFormat	= VK_FORMAT_R32G32B32_SFLOAT;
-		geometry[0].geometry.triangles.indexData	= index_buffer;
-		geometry[0].geometry.triangles.indexOffset	= 0;
-		geometry[0].geometry.triangles.indexCount	= uint(std::size( indices ));
+		geometry[0].geometry.triangles.maxVertex	= uint(CountOf( vertices ));
+		geometry[0].geometry.triangles.vertexStride	= sizeof(vertices[0]);
 		geometry[0].geometry.triangles.indexType	= VK_INDEX_TYPE_UINT32;
 
-		VkAccelerationStructureCreateInfoNV	createinfo = {};
-		createinfo.sType				= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
-		createinfo.info.sType			= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
-		createinfo.info.type			= VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
-		createinfo.info.geometryCount	= uint(std::size( geometry ));
-		createinfo.info.pGeometries		= geometry;
-
-		VK_CHECK( vkCreateAccelerationStructureNV( device, &createinfo, nullptr, OUT &bottomLevelAS ));
-		tempHandles.emplace_back( EHandleType::AccStruct, uint64_t(bottomLevelAS) );
-		
-		VkAccelerationStructureMemoryRequirementsInfoNV	mem_info = {};
-		mem_info.sType					= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
-		mem_info.accelerationStructure	= bottomLevelAS;
-
-		VkMemoryRequirements2	mem_req = {};
-		vkGetAccelerationStructureMemoryRequirementsNV( device, &mem_info, OUT &mem_req );
-		
-		VkDeviceSize	offset = AlignToLarger( res.dev.totalSize, mem_req.memoryRequirements.alignment );
-		res.dev.totalSize	 = offset + mem_req.memoryRequirements.size;
-		res.dev.memTypeBits	|= mem_req.memoryRequirements.memoryTypeBits;
-		
-		res.onBind.push_back( [this, bottomLevelAS, &bottom_level_as_handle, &dev_memory, offset] (void *) -> bool
+		// get size of acceleration structure and scratch buffer
 		{
-			VkBindAccelerationStructureMemoryInfoNV	bind_info = {};
-			bind_info.sType					= VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
-			bind_info.accelerationStructure	= bottomLevelAS;
-			bind_info.memory				= dev_memory;
-			bind_info.memoryOffset			= offset;
-			VK_CHECK( vkBindAccelerationStructureMemoryNV( device, 1, &bind_info ));
+			blas_size_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
-			VK_CHECK( vkGetAccelerationStructureHandleNV( device, bottomLevelAS, sizeof(bottom_level_as_handle), OUT &bottom_level_as_handle ));
-			return true;
-		});
-		
-		res.onUpdate.push_back( [this, bottomLevelAS, geometry, &scratch_buffer] (VkCommandBuffer cmd)
+			VkAccelerationStructureBuildGeometryInfoKHR		build_info	= {};
+			build_info.sType			= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+			build_info.flags			= 0;
+			build_info.type				= VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+			build_info.pGeometries		= geometry;
+			build_info.geometryCount	= uint(CountOf( geometry ));
+
+			const uint	max_primitives[1] = { uint(CountOf( indices )) / 3 };
+
+			vkGetAccelerationStructureBuildSizesKHR( GetVkDevice(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &build_info, max_primitives, OUT &blas_size_info );
+		}
+
+		// create buffer for acceleration structure
 		{
-			VkAccelerationStructureInfoNV	info = {};
-			info.sType			= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
-			info.type			= VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
-			info.geometryCount	= uint(std::size( geometry ));
-			info.pGeometries	= geometry;
+			VkBufferCreateInfo	info = {};
+			info.sType			= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+			info.flags			= 0;
+			info.size			= blas_size_info.accelerationStructureSize;
+			info.usage			= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+			info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
-			vkCmdBuildAccelerationStructureNV( cmd, &info,
-											   VK_NULL_HANDLE, 0,				// instance
-											   VK_FALSE,						// update
-											   bottomLevelAS, VK_NULL_HANDLE,	// dst, src
-											   scratch_buffer, 0
-											 );
+			VK_CHECK_ERR( vkCreateBuffer( GetVkDevice(), &info, null, OUT &blas_buffer ));
+			tempHandles.emplace_back( EHandleType::Buffer, ulong(blas_buffer) );
+
+			VkBufferMemoryRequirementsInfo2	mem_info	= {};
+			VkMemoryRequirements2			mem_req		= {};
+
+			mem_req.sType	= VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+			mem_info.sType	= VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2;
+			mem_info.buffer	= blas_buffer;
+
+			vkGetBufferMemoryRequirements2( GetVkDevice(), &mem_info, OUT &mem_req );
+
+			VkDeviceSize	offset	 = AlignUp( res.dev.totalSize, mem_req.memoryRequirements.alignment );
+			res.dev.totalSize		 = offset + mem_req.memoryRequirements.size;
+			res.dev.memTypeBits		|= mem_req.memoryRequirements.memoryTypeBits;
+
+			res.onBind.push_back( [this, &dev_memory, blas_buffer, offset] () -> bool
+			{
+				VK_CHECK_ERR( vkBindBufferMemory( GetVkDevice(), blas_buffer, dev_memory, offset ));
+				return true;
+			});
+		}
+
+		// create acceleration structure
+		{
+			VkAccelerationStructureCreateInfoKHR	accel_struct_ci = {};
+			accel_struct_ci.sType		= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+			accel_struct_ci.createFlags	= 0;
+			accel_struct_ci.buffer		= blas_buffer;
+			accel_struct_ci.offset		= 0;
+			accel_struct_ci.size		= blas_size_info.accelerationStructureSize;
+			accel_struct_ci.type		= VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+
+			res.onBind.push_back( [this, accel_struct_ci, &outRTData, &blas_addr] () -> bool
+			{
+				VK_CHECK_ERR( vkCreateAccelerationStructureKHR( GetVkDevice(), &accel_struct_ci, null, OUT &outRTData.bottomLevelAS ));
+				tempHandles.emplace_back( EHandleType::AccStruct, ulong(outRTData.bottomLevelAS) );
+
+				VkAccelerationStructureDeviceAddressInfoKHR	addr_info = {};
+				addr_info.sType					= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+				addr_info.accelerationStructure	= outRTData.bottomLevelAS;
+
+				blas_addr = vkGetAccelerationStructureDeviceAddressKHR( GetVkDevice(), &addr_info );
+				CHECK_ERR( blas_addr != 0 );
+				return true;
+			});
+		}
+
+		res.onUpdate.push_back( [&] (VkCommandBuffer cmd)
+		{
+			geometry[0].geometry.triangles.vertexData.deviceAddress	= vertex_buffer_addr;
+			geometry[0].geometry.triangles.indexData.deviceAddress	= index_buffer_addr;
+
+			VkAccelerationStructureBuildGeometryInfoKHR	info = {};
+			info.sType						= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+			info.type						= VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+			info.mode						= VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+			info.srcAccelerationStructure	= Default;
+			info.dstAccelerationStructure	= outRTData.bottomLevelAS;
+			info.geometryCount				= uint(CountOf( geometry ));
+			info.pGeometries				= geometry;
+			info.scratchData.deviceAddress	= scratch_buffer_addr;
+
+			VkAccelerationStructureBuildRangeInfoKHR		range		= {};
+			VkAccelerationStructureBuildRangeInfoKHR const*	range_ptr	= &range;
+
+			range.primitiveCount = uint(CountOf( indices )) / 3;
+
+			vkCmdBuildAccelerationStructuresKHR( cmd, 1, &info, &range_ptr );
 		});
 	}
-	
+
 	// create instance buffer
 	{
 		VkBufferCreateInfo	info = {};
 		info.sType			= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		info.flags			= 0;
-		info.size			= sizeof(VkGeometryInstance);
-		info.usage			= VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
+		info.size			= sizeof(VkAccelerationStructureInstanceKHR);
+		info.usage			= VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+							  VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
-		VK_CHECK( vkCreateBuffer( device, &info, nullptr, OUT &instance_buffer ));
-		
-		VkMemoryRequirements	mem_req;
-		vkGetBufferMemoryRequirements( device, instance_buffer, OUT &mem_req );
-		
-		VkDeviceSize	offset = AlignToLarger( res.host.totalSize, mem_req.alignment );
-		res.host.totalSize		 = offset + mem_req.size;
-		res.host.memTypeBits	|= mem_req.memoryTypeBits;
+		VK_CHECK_ERR( vkCreateBuffer( GetVkDevice(), &info, null, OUT &instance_buffer ));
 
-		res.onBind.push_back( [this, &host_memory, &bottom_level_as_handle, instance_buffer, offset] (void *ptr) -> bool
+		VkBufferMemoryRequirementsInfo2	mem_info	= {};
+		VkMemoryRequirements2			mem_req		= {};
+
+		mem_req.sType	= VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+		mem_info.sType	= VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2;
+		mem_info.buffer	= instance_buffer;
+
+		vkGetBufferMemoryRequirements2( GetVkDevice(), &mem_info, OUT &mem_req );
+
+		VkDeviceSize	offset	 = AlignUp( res.dev.totalSize, mem_req.memoryRequirements.alignment );
+		res.dev.totalSize		 = offset + mem_req.memoryRequirements.size;
+		res.dev.memTypeBits		|= mem_req.memoryRequirements.memoryTypeBits;
+
+		res.onBind.push_back( [this, &dev_memory, &instance_buffer_addr, instance_buffer, offset] () -> bool
 		{
-			VkGeometryInstance	instance = {};
-			instance.transformRow0	= {1.0f, 0.0f, 0.0f, 0.0f};
-			instance.transformRow1	= {0.0f, 1.0f, 0.0f, 0.0f};
-			instance.transformRow2	= {0.0f, 0.0f, 1.0f, 0.0f};
-			instance.instanceId		= 0;
-			instance.mask			= 0xFF;
-			instance.instanceOffset	= 0;
-			instance.flags			= 0;
-			instance.accelerationStructureHandle = bottom_level_as_handle;
+			VK_CHECK_ERR( vkBindBufferMemory( GetVkDevice(), instance_buffer, dev_memory, offset ));
 
-			std::memcpy( ((char*)ptr) + offset, &instance, sizeof(instance) );
+			VkBufferDeviceAddressInfoKHR	buf_info = {};
+			buf_info.sType		= VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+			buf_info.buffer		= instance_buffer;
 
-			VK_CHECK( vkBindBufferMemory( device, instance_buffer, host_memory, offset ));
+			instance_buffer_addr = vkGetBufferDeviceAddressKHR( GetVkDevice(), &buf_info );
+			CHECK_ERR( instance_buffer_addr != 0 );
 			return true;
+		});
+
+		res.onUpdate.push_back( [this, instance_buffer, &blas_addr] (VkCommandBuffer cmdbuf)
+		{
+			VkAccelerationStructureInstanceKHR	instance [instance_count] = {};
+			instance[0].transform.matrix[0][0]		= 1.0f;
+			instance[0].transform.matrix[1][1]		= 1.0f;
+			instance[0].transform.matrix[2][2]		= 1.0f;
+			instance[0].mask						= 0xFF;
+			instance[0].flags						= 0;
+			instance[0].instanceCustomIndex						= 0;
+			instance[0].instanceShaderBindingTableRecordOffset	= 0;
+			instance[0].accelerationStructureReference			= blas_addr;
+
+			vkCmdUpdateBuffer( cmdbuf, instance_buffer, 0, sizeof(instance), instance );
 		});
 	}
 
 	// create top level acceleration structure
+	VkAccelerationStructureBuildSizesInfoKHR	tlas_size_info = {};
 	{
-		VkAccelerationStructureCreateInfoNV	createinfo = {};
-		createinfo.sType				= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
-		createinfo.info.sType			= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
-		createinfo.info.type			= VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
-		createinfo.info.flags			= 0;
-		createinfo.info.instanceCount	= 1;
-
-		VK_CHECK( vkCreateAccelerationStructureNV( device, &createinfo, nullptr, OUT &topLevelAS ));
-		tempHandles.emplace_back( EHandleType::AccStruct, uint64_t(topLevelAS) );
-		
-		VkAccelerationStructureMemoryRequirementsInfoNV	mem_info = {};
-		mem_info.sType					= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
-		mem_info.type					= VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
-		mem_info.accelerationStructure	= topLevelAS;
-
-		VkMemoryRequirements2	mem_req = {};
-		vkGetAccelerationStructureMemoryRequirementsNV( device, &mem_info, OUT &mem_req );
-
-		VkDeviceSize	offset = AlignToLarger( res.dev.totalSize, mem_req.memoryRequirements.alignment );
-		res.dev.totalSize	 = offset + mem_req.memoryRequirements.size;
-		res.dev.memTypeBits	|= mem_req.memoryRequirements.memoryTypeBits;
-		
-		res.onBind.push_back( [this, &dev_memory, topLevelAS, offset] (void *) -> bool
+		// get size of acceleration structure and scratch buffer
 		{
-			VkBindAccelerationStructureMemoryInfoNV	bind_info = {};
-			bind_info.sType					= VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
-			bind_info.accelerationStructure	= topLevelAS;
-			bind_info.memory				= dev_memory;
-			bind_info.memoryOffset			= offset;
-			VK_CHECK( vkBindAccelerationStructureMemoryNV( device, 1, &bind_info ));
-			return true;
-		});
+			tlas_size_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
-		res.onUpdate.push_back( [this, topLevelAS, instance_buffer, &scratch_buffer] (VkCommandBuffer cmd)
+			VkAccelerationStructureGeometryKHR	instance_geom = {};
+			instance_geom.sType			= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+			instance_geom.geometryType	= VK_GEOMETRY_TYPE_INSTANCES_KHR;
+			instance_geom.geometry.instances.sType				= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+			instance_geom.geometry.instances.arrayOfPointers	= VK_FALSE;
+
+			VkAccelerationStructureBuildGeometryInfoKHR		build_info	= {};
+			build_info.sType			= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+			build_info.flags			= 0;
+			build_info.type				= VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+			build_info.pGeometries		= &instance_geom;
+			build_info.geometryCount	= 1;
+
+			vkGetAccelerationStructureBuildSizesKHR( GetVkDevice(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &build_info, &instance_count, OUT &tlas_size_info );
+		}
+
+		// create buffer for acceleration structure
 		{
-			// write-read memory barrier for 'bottomLevelAS'
-			// execution barrier for 'scratchBuffer'
-			VkMemoryBarrier		barrier = {};
-			barrier.sType			= VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-			barrier.srcAccessMask	= VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
-			barrier.dstAccessMask	= VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
-			
-			vkCmdPipelineBarrier( cmd, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV,
-								  0, 1, &barrier, 0, nullptr, 0, nullptr );
-			
-			VkAccelerationStructureInfoNV	info = {};
-			info.sType			= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
-			info.type			= VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
+			VkBufferCreateInfo	info = {};
+			info.sType			= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 			info.flags			= 0;
-			info.instanceCount	= 1;
+			info.size			= tlas_size_info.accelerationStructureSize;
+			info.usage			= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+			info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
-			vkCmdBuildAccelerationStructureNV( cmd, &info,
-											   instance_buffer, 0,			// instance
-											   VK_FALSE,						// update
-											   topLevelAS, VK_NULL_HANDLE,	// dst, src
-											   scratch_buffer, 0
-											 );
+			VK_CHECK_ERR( vkCreateBuffer( GetVkDevice(), &info, null, OUT &tlas_buffer ));
+			tempHandles.emplace_back( EHandleType::Buffer, ulong(tlas_buffer) );
+
+			VkBufferMemoryRequirementsInfo2	mem_info	= {};
+			VkMemoryRequirements2			mem_req		= {};
+
+			mem_req.sType	= VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+			mem_info.sType	= VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2;
+			mem_info.buffer	= tlas_buffer;
+
+			vkGetBufferMemoryRequirements2( GetVkDevice(), &mem_info, OUT &mem_req );
+
+			VkDeviceSize	offset	 = AlignUp( res.dev.totalSize, mem_req.memoryRequirements.alignment );
+			res.dev.totalSize		 = offset + mem_req.memoryRequirements.size;
+			res.dev.memTypeBits		|= mem_req.memoryRequirements.memoryTypeBits;
+
+			res.onBind.push_back( [this, &dev_memory, tlas_buffer, offset] () -> bool
+			{
+				VK_CHECK_ERR( vkBindBufferMemory( GetVkDevice(), tlas_buffer, dev_memory, offset ));
+				return true;
+			});
+		}
+
+		// create acceleration structure
+		{
+			VkAccelerationStructureCreateInfoKHR	accel_struct_ci = {};
+			accel_struct_ci.sType		= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+			accel_struct_ci.createFlags	= 0;
+			accel_struct_ci.buffer		= tlas_buffer;
+			accel_struct_ci.offset		= 0;
+			accel_struct_ci.size		= tlas_size_info.accelerationStructureSize;
+			accel_struct_ci.type		= VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+
+			res.onBind.push_back( [this, accel_struct_ci, &outRTData, &tlas_addr] () -> bool
+			{
+				VK_CHECK_ERR( vkCreateAccelerationStructureKHR( GetVkDevice(), &accel_struct_ci, null, OUT &outRTData.topLevelAS ));
+				tempHandles.emplace_back( EHandleType::AccStruct, ulong(outRTData.topLevelAS) );
+
+				VkAccelerationStructureDeviceAddressInfoKHR	addr_info = {};
+				addr_info.sType					= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+				addr_info.accelerationStructure	= outRTData.topLevelAS;
+
+				tlas_addr = vkGetAccelerationStructureDeviceAddressKHR( GetVkDevice(), &addr_info );
+				return true;
+			});
+		}
+
+		res.onUpdate.push_back( [&] (VkCommandBuffer cmd)
+		{
+			VkAccelerationStructureGeometryKHR	geometry	= {};
+			geometry.sType									= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+			geometry.flags									= 0;
+			geometry.geometryType							= VK_GEOMETRY_TYPE_INSTANCES_KHR;
+			geometry.geometry.instances.sType				= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+			geometry.geometry.instances.pNext				= null;
+			geometry.geometry.instances.arrayOfPointers		= VK_FALSE;
+			geometry.geometry.instances.data.deviceAddress	= instance_buffer_addr;
+
+			VkAccelerationStructureBuildGeometryInfoKHR		info = {};
+			info.sType						= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+			info.type						= VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+			info.mode						= VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+			info.srcAccelerationStructure	= Default;
+			info.dstAccelerationStructure	= outRTData.topLevelAS;
+			info.geometryCount				= 1;
+			info.pGeometries				= &geometry;
+			info.scratchData.deviceAddress	= scratch_buffer_addr;
+
+			VkAccelerationStructureBuildRangeInfoKHR		range		= {};
+			VkAccelerationStructureBuildRangeInfoKHR const*	range_ptr	= &range;
+
+			range.primitiveCount = 1;
+
+			vkCmdBuildAccelerationStructuresKHR( cmd, 1, &info, &range_ptr );
 		});
 	}
-	
+
 	// create scratch buffer
 	{
 		VkBufferCreateInfo	info = {};
 		info.sType			= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		info.flags			= 0;
-		info.usage			= VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
+		info.size			= Max( blas_size_info.buildScratchSize, tlas_size_info.buildScratchSize );
+		info.usage			= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
 		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
-		// calculate buffer size
+		VK_CHECK_ERR( vkCreateBuffer( GetVkDevice(), &info, null, OUT &scratch_buffer ));
+
+		VkBufferMemoryRequirementsInfo2	mem_info	= {};
+		VkMemoryRequirements2			mem_req		= {};
+
+		mem_req.sType	= VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+		mem_info.sType	= VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2;
+		mem_info.buffer	= scratch_buffer;
+
+		vkGetBufferMemoryRequirements2( GetVkDevice(), &mem_info, OUT &mem_req );
+
+		VkDeviceSize	offset	 = AlignUp( res.dev.totalSize, mem_req.memoryRequirements.alignment );
+		res.dev.totalSize		 = offset + mem_req.memoryRequirements.size;
+		res.dev.memTypeBits		|= mem_req.memoryRequirements.memoryTypeBits;
+
+		res.onBind.push_back( [this, &dev_memory, &scratch_buffer_addr, scratch_buffer, offset] () -> bool
 		{
-			VkMemoryRequirements2								mem_req2	= {};
-			VkAccelerationStructureMemoryRequirementsInfoNV		as_info		= {};
-			as_info.sType					= VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
-			as_info.type					= VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
-			as_info.accelerationStructure	= topLevelAS;
+			VK_CHECK_ERR( vkBindBufferMemory( GetVkDevice(), scratch_buffer, dev_memory, offset ));
 
-			vkGetAccelerationStructureMemoryRequirementsNV( device, &as_info, OUT &mem_req2 );
-			info.size = mem_req2.memoryRequirements.size;
-		
-			as_info.accelerationStructure	= bottomLevelAS;
-			vkGetAccelerationStructureMemoryRequirementsNV( device, &as_info, OUT &mem_req2 );
-			info.size = Max( info.size, mem_req2.memoryRequirements.size );
-		}
+			VkBufferDeviceAddressInfoKHR	buf_info = {};
+			buf_info.sType		= VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+			buf_info.buffer		= scratch_buffer;
 
-		VK_CHECK( vkCreateBuffer( device, &info, nullptr, OUT &scratch_buffer ));
-		
-		VkMemoryRequirements	mem_req;
-		vkGetBufferMemoryRequirements( device, scratch_buffer, OUT &mem_req );
-		
-		VkDeviceSize	offset = AlignToLarger( res.dev.totalSize, mem_req.alignment );
-		res.dev.totalSize	 = offset + mem_req.size;
-		res.dev.memTypeBits	|= mem_req.memoryTypeBits;
-
-		res.onBind.push_back( [this, scratch_buffer, &dev_memory, offset] (void *) -> bool
-		{
-			VK_CHECK( vkBindBufferMemory( device, scratch_buffer, dev_memory, offset ));
+			scratch_buffer_addr = vkGetBufferDeviceAddressKHR( GetVkDevice(), &buf_info );
+			CHECK_ERR( scratch_buffer_addr != 0 );
 			return true;
 		});
 	}
 
 	// create shader binding table
 	{
-		const uint	stride		= rayTracingProps.shaderGroupHandleSize;
-		const uint	alignment	= std::max( stride, rayTracingProps.shaderGroupBaseAlignment );
+		const VkDeviceSize	alignment = Max( GetRayTracingProps().shaderGroupHandleSize, GetRayTracingProps().shaderGroupBaseAlignment );
+
+		outRTData.shaderGroupSize	= GetRayTracingProps().shaderGroupHandleSize;
+		outRTData.shaderGroupAlign	= alignment;
 
 		VkBufferCreateInfo	info = {};
 		info.sType			= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		info.flags			= 0;
 		info.size			= numGroups * alignment;
-		info.usage			= VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_RAY_TRACING_BIT_NV;
+		info.usage			= VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
 		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
 
-		VK_CHECK( vkCreateBuffer( device, &info, nullptr, OUT &shaderBindingTable ));
-		tempHandles.emplace_back( EHandleType::Buffer, uint64_t(shaderBindingTable) );
-		
-		VkMemoryRequirements	mem_req;
-		vkGetBufferMemoryRequirements( device, shaderBindingTable, OUT &mem_req );
-		
-		VkDeviceSize	offset = AlignToLarger( res.dev.totalSize, mem_req.alignment );
-		res.dev.totalSize	 = offset + mem_req.size;
-		res.dev.memTypeBits	|= mem_req.memoryTypeBits;
+		VK_CHECK_ERR( vkCreateBuffer( GetVkDevice(), &info, null, OUT &outRTData.shaderBindingTable ));
+		tempHandles.emplace_back( EHandleType::Buffer, ulong(outRTData.shaderBindingTable) );
 
-		res.onBind.push_back( [this, shaderBindingTable, &dev_memory, offset] (void *) -> bool
+		VkBufferMemoryRequirementsInfo2	mem_info	= {};
+		VkMemoryRequirements2			mem_req		= {};
+
+		mem_req.sType	= VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+		mem_info.sType	= VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2;
+		mem_info.buffer	= outRTData.shaderBindingTable;
+
+		vkGetBufferMemoryRequirements2( GetVkDevice(), &mem_info, OUT &mem_req );
+
+		VkDeviceSize	offset	 = AlignUp( res.dev.totalSize, mem_req.memoryRequirements.alignment );
+		res.dev.totalSize		 = offset + mem_req.memoryRequirements.size;
+		res.dev.memTypeBits		|= mem_req.memoryRequirements.memoryTypeBits;
+
+		res.onBind.push_back( [this, &outRTData, &dev_memory, offset] () -> bool
 		{
-			VK_CHECK( vkBindBufferMemory( device, shaderBindingTable, dev_memory, offset ));
+			VK_CHECK_ERR( vkBindBufferMemory( GetVkDevice(), outRTData.shaderBindingTable, dev_memory, offset ));
+
+			VkBufferDeviceAddressInfoKHR	buf_info = {};
+			buf_info.sType		= VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+			buf_info.buffer		= outRTData.shaderBindingTable;
+
+			outRTData.sbtAddress = vkGetBufferDeviceAddressKHR( GetVkDevice(), &buf_info );
+			CHECK_ERR( outRTData.sbtAddress != 0 );
 			return true;
 		});
 
-		res.onUpdate.push_back( [this, shaderBindingTable, rtPipeline, numGroups, alignment, size = info.size] (VkCommandBuffer cmd)
+		res.onUpdate.push_back( [this, sbt = outRTData.shaderBindingTable, rtPipeline, numGroups, alignment, size = info.size] (VkCommandBuffer cmd)
 		{
-			vector<uint8_t>	handles;  handles.resize(size);
+			Array<ulong>	handles;  handles.resize( size / sizeof(ulong) );
 
 			for (uint i = 0; i < numGroups; ++i) {
-				VK_CALL( vkGetRayTracingShaderGroupHandlesNV( device, rtPipeline, i, 1, rayTracingProps.shaderGroupHandleSize, OUT handles.data() + alignment * i ));
+				VK_CHECK( vkGetRayTracingShaderGroupHandlesKHR( GetVkDevice(), rtPipeline, i, 1, GetRayTracingProps().shaderGroupHandleSize, OUT handles.data() + Bytes{alignment * i} ));
 			}	
-			vkCmdUpdateBuffer( cmd, shaderBindingTable, 0, handles.size(), handles.data() );
+			vkCmdUpdateBuffer( cmd, sbt, 0, handles.size() * sizeof(handles[0]), handles.data() );
 		});
 	}
-	
-	// allocate device local memory
+
+	// allocate GetVkDevice() local memory
 	{
-		VkMemoryAllocateInfo	info = {};
-		info.sType				= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		info.allocationSize		= res.dev.totalSize;
-		CHECK_ERR( GetMemoryTypeIndex( res.dev.memTypeBits, res.dev.memProperty, OUT info.memoryTypeIndex ));
+		VkMemoryAllocateInfo		mem_alloc	= {};
+		VkMemoryAllocateFlagsInfo	mem_flag	= {};
 
-		VK_CHECK( vkAllocateMemory( device, &info, nullptr, OUT &dev_memory ));
-		tempHandles.emplace_back( EHandleType::Memory, uint64_t(dev_memory) );
-	}
+		mem_flag.sType	= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+		mem_flag.flags	= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
 
-	// allocate host visible memory
-	void* host_ptr = nullptr;
-	{
-		VkMemoryAllocateInfo	info = {};
-		info.sType				= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		info.allocationSize		= res.host.totalSize;
-		CHECK_ERR( GetMemoryTypeIndex( res.host.memTypeBits, res.host.memProperty, OUT info.memoryTypeIndex ));
+		mem_alloc.sType				= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		mem_alloc.pNext				= &mem_flag;
+		mem_alloc.allocationSize	= res.dev.totalSize;
 
-		VK_CHECK( vkAllocateMemory( device, &info, nullptr, OUT &host_memory ));
+		CHECK_ERR( GetMemoryTypeIndex( res.dev.memTypeBits, res.dev.memProperty, OUT mem_alloc.memoryTypeIndex ));
 
-		VK_CHECK( vkMapMemory( device, host_memory, 0, res.host.totalSize, 0, &host_ptr ));
+		VK_CHECK_ERR( vkAllocateMemory( GetVkDevice(), &mem_alloc, null, OUT &dev_memory ));
+		tempHandles.emplace_back( EHandleType::Memory, ulong(dev_memory) );
 	}
 
 	// bind resources
 	for (auto& bind : res.onBind) {
-		CHECK_ERR( bind( host_ptr ));
+		CHECK_ERR( bind() );
 	}
 
 	// update resources
@@ -1794,45 +2037,38 @@ bool  Device::CreateRayTracingScene (VkPipeline rtPipeline, uint numGroups, OUT 
 		VkCommandBufferBeginInfo	begin_info = {};
 		begin_info.sType	= VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		begin_info.flags	= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		VK_CALL( vkBeginCommandBuffer( cmdBuffer, &begin_info ));
+		VK_CHECK_ERR( vkBeginCommandBuffer( cmdBuffer, &begin_info ));
 
-		for (auto& cb : res.onUpdate) {
+		for (auto& cb : res.onUpdate)
+		{
+			VkMemoryBarrier		barrier = {};
+			barrier.sType			= VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+			barrier.srcAccessMask	= VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_HOST_READ_BIT;
+			barrier.dstAccessMask	= VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_HOST_READ_BIT;
+
+			vkCmdPipelineBarrier( cmdBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+								  0, 1, &barrier, 0, null, 0, null );
+
 			cb( cmdBuffer );
 		}
 
-		VK_CALL( vkEndCommandBuffer( cmdBuffer ));
+		VK_CHECK_ERR( vkEndCommandBuffer( cmdBuffer ));
 
 		VkSubmitInfo		submit_info = {};
 		submit_info.sType				= VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		submit_info.commandBufferCount	= 1;
 		submit_info.pCommandBuffers		= &cmdBuffer;
 
-		VK_CHECK( vkQueueSubmit( queue, 1, &submit_info, VK_NULL_HANDLE ));
+		VK_CHECK_ERR( vkQueueSubmit( GetVkQueue(), 1, &submit_info, Default ));
 	}
-	VK_CALL( vkQueueWaitIdle( queue ));
-	
-	vkDestroyBuffer( device, vertex_buffer, nullptr );
-	vkDestroyBuffer( device, index_buffer, nullptr );
-	vkDestroyBuffer( device, instance_buffer, nullptr );
-	vkDestroyBuffer( device, scratch_buffer, nullptr );
-	vkFreeMemory( device, host_memory, nullptr );
+	VK_CHECK_ERR( vkQueueWaitIdle( GetVkQueue() ));
+
+	vkDestroyBuffer( GetVkDevice(), vertex_buffer, null );
+	vkDestroyBuffer( GetVkDevice(), index_buffer, null );
+	vkDestroyBuffer( GetVkDevice(), instance_buffer, null );
+	vkDestroyBuffer( GetVkDevice(), scratch_buffer, null );
 
 	return true;
-}
-
-/*
-=================================================
-	_DebugUtilsCallback
-=================================================
-*/
-VKAPI_ATTR VkBool32 VKAPI_CALL
-	Device::_DebugUtilsCallback (VkDebugUtilsMessageSeverityFlagBitsEXT			messageSeverity,
-								 VkDebugUtilsMessageTypeFlagsEXT				/*messageTypes*/,
-								 const VkDebugUtilsMessengerCallbackDataEXT*	pCallbackData,
-								 void*											pUserData)
-{
-	std::cout << pCallbackData->pMessage << std::endl;
-	return VK_FALSE;
 }
 
 /*
@@ -1840,19 +2076,19 @@ VKAPI_ATTR VkBool32 VKAPI_CALL
 	TestDebugTraceOutput
 =================================================
 */
-bool  Device::TestDebugTraceOutput (vector<VkShaderModule> modules, string referenceFile)
+bool  TestDevice::TestDebugTraceOutput (Array<VkShaderModule> modules, String referenceFile)
 {
 	CHECK_ERR( referenceFile.size() );
 	CHECK_ERR( modules.size() );
 
-	string			merged;
-	vector<string>	debug_output;
+	String			merged;
+	Array<String>	debug_output;
 
 	for (auto& module : modules)
 	{
-		vector<string>	temp;
+		Array<String>	temp;
 		CHECK_ERR( _GetDebugOutput( module, readBackPtr, debugOutputSize, OUT temp ));
-		CHECK_ERR( temp.size() );
+	//	CHECK( temp.size() );
 		debug_output.insert( debug_output.end(), temp.begin(), temp.end() );
 	}
 
@@ -1864,18 +2100,18 @@ bool  Device::TestDebugTraceOutput (vector<VkShaderModule> modules, string refer
 
 	if ( UpdateReferences )
 	{
-		FILE*	file = nullptr;
-		fopen_s( OUT &file, (std::string{DATA_PATH} + referenceFile).c_str(), "wb" );
+		FILE*	file = null;
+		fopen_s( OUT &file, (String{DATA_PATH} + referenceFile).c_str(), "wb" );
 		CHECK_ERR( file );
 		CHECK_ERR( fwrite( merged.c_str(), sizeof(merged[0]), merged.size(), file ) == merged.size() );
 		fclose( file );
 		return true;
 	}
 
-	string	file_data;
+	String	file_data;
 	{
-		FILE*	file = nullptr;
-		fopen_s( OUT &file, (std::string{DATA_PATH} + referenceFile).c_str(), "rb" );
+		FILE*	file = null;
+		fopen_s( OUT &file, (String{DATA_PATH} + referenceFile).c_str(), "rb" );
 		CHECK_ERR( file );
 		
 		CHECK_ERR( fseek( file, 0, SEEK_END ) == 0 );
@@ -1896,14 +2132,14 @@ bool  Device::TestDebugTraceOutput (vector<VkShaderModule> modules, string refer
 	TestPerformanceOutput
 =================================================
 */
-bool  Device::TestPerformanceOutput (vector<VkShaderModule> modules, vector<string> fnNames)
+bool  TestDevice::TestPerformanceOutput (Array<VkShaderModule> modules, Array<String> fnNames)
 {
 	CHECK_ERR( fnNames.size() );
 	CHECK_ERR( modules.size() );
 
 	for (auto& module : modules)
 	{
-		vector<string>	temp;
+		Array<String>	temp;
 		CHECK_ERR( _GetDebugOutput( module, readBackPtr, debugOutputSize, OUT temp ));
 		CHECK_ERR( temp.size() );
 
@@ -1911,8 +2147,8 @@ bool  Device::TestPerformanceOutput (vector<VkShaderModule> modules, vector<stri
 		{
 			for (auto& fn : fnNames)
 			{
-				size_t	pos = output.find( fn );
-				CHECK_ERR( pos != string::npos );
+				usize	pos = output.find( fn );
+				CHECK_ERR( pos != String::npos );
 			}
 		}
 	}
@@ -1925,7 +2161,7 @@ bool  Device::TestPerformanceOutput (vector<VkShaderModule> modules, vector<stri
 	CheckTimeMap
 =================================================
 */
-bool  Device::CheckTimeMap (vector<VkShaderModule> modules, float emptyPxFactor)
+bool  TestDevice::CheckTimeMap (Array<VkShaderModule> modules, float emptyPxFactor)
 {
 	CHECK_ERR( modules.size() );
 
@@ -1949,10 +2185,10 @@ bool  Device::CheckTimeMap (vector<VkShaderModule> modules, float emptyPxFactor)
 	for (uint x = 0; x < width; ++x)
 	{
 		double	dt = double(*(pixels + (x + y * width)));
-		min_time   = min(min_time, dt);
-		max_time   = max(max_time, dt);
+		min_time   = Min( min_time, dt );
+		max_time   = Max( max_time, dt );
 		mean_time += dt;
-		count     += (dt > 0.0f);
+		count     += (dt > 0.0);
 	}
 
 	mean_time /= double(width * height);
@@ -1971,48 +2207,65 @@ bool  Device::CheckTimeMap (vector<VkShaderModule> modules, float emptyPxFactor)
 	FreeTempHandles
 =================================================
 */
-void  Device::FreeTempHandles ()
+void  TestDevice::FreeTempHandles ()
 {
-	for (auto&[type, hnd] : tempHandles)
+	for (auto& [type, hnd] : tempHandles)
 	{
 		BEGIN_ENUM_CHECKS();
 		switch ( type )
 		{
 			case EHandleType::Memory :
-				vkFreeMemory( device, VkDeviceMemory(hnd), nullptr );
+				vkFreeMemory( GetVkDevice(), VkDeviceMemory(hnd), null );
 				break;
 			case EHandleType::Buffer :
-				vkDestroyBuffer( device, VkBuffer(hnd), nullptr );
+				vkDestroyBuffer( GetVkDevice(), VkBuffer(hnd), null );
 				break;
 			case EHandleType::Image :
-				vkDestroyImage( device, VkImage(hnd), nullptr );
+				vkDestroyImage( GetVkDevice(), VkImage(hnd), null );
 				break;
 			case EHandleType::ImageView :
-				vkDestroyImageView( device, VkImageView(hnd), nullptr );
+				vkDestroyImageView( GetVkDevice(), VkImageView(hnd), null );
 				break;
 			case EHandleType::Pipeline :
-				vkDestroyPipeline( device, VkPipeline(hnd), nullptr );
+				vkDestroyPipeline( GetVkDevice(), VkPipeline(hnd), null );
 				break;
 			case EHandleType::PipelineLayout :
-				vkDestroyPipelineLayout( device, VkPipelineLayout(hnd), nullptr );
+				vkDestroyPipelineLayout( GetVkDevice(), VkPipelineLayout(hnd), null );
 				break;
 			case EHandleType::Shader :
-				vkDestroyShaderModule( device, VkShaderModule(hnd), nullptr );
+				vkDestroyShaderModule( GetVkDevice(), VkShaderModule(hnd), null );
 				break;
 			case EHandleType::DescriptorSetLayout :
-				vkDestroyDescriptorSetLayout( device, VkDescriptorSetLayout(hnd), nullptr );
+				vkDestroyDescriptorSetLayout( GetVkDevice(), VkDescriptorSetLayout(hnd), null );
 				break;
 			case EHandleType::RenderPass :
-				vkDestroyRenderPass( device, VkRenderPass(hnd), nullptr );
+				vkDestroyRenderPass( GetVkDevice(), VkRenderPass(hnd), null );
 				break;
 			case EHandleType::Framebuffer :
-				vkDestroyFramebuffer( device, VkFramebuffer(hnd), nullptr );
+				vkDestroyFramebuffer( GetVkDevice(), VkFramebuffer(hnd), null );
 				break;
 			case EHandleType::AccStruct :
-				vkDestroyAccelerationStructureNV( device, VkAccelerationStructureNV(hnd), nullptr );
+				vkDestroyAccelerationStructureKHR( GetVkDevice(), VkAccelerationStructureKHR(hnd), null );
 				break;
+			default :
+				CHECK( false and "unknown handle type" );
 		}
 		END_ENUM_CHECKS();
 	}
 	tempHandles.clear();
+}
+
+/*
+=================================================
+	_DebugUtilsCallback
+=================================================
+*/
+VKAPI_ATTR VkBool32 VKAPI_CALL
+	TestDevice::_DebugUtilsCallback (VkDebugUtilsMessageSeverityFlagBitsEXT			messageSeverity,
+									 VkDebugUtilsMessageTypeFlagsEXT				/*messageTypes*/,
+									 const VkDebugUtilsMessengerCallbackDataEXT*	pCallbackData,
+									 void*											pUserData)
+{
+	std::cout << pCallbackData->pMessage << std::endl;
+	return VK_FALSE;
 }

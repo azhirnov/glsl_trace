@@ -12,6 +12,8 @@ namespace AE::PipelineCompiler
 {
 namespace
 {
+	using namespace glslang;
+
 #ifndef AE_ENABLE_GLSLANG
 	enum TBasicType : ubyte {
 		EbtVoid,

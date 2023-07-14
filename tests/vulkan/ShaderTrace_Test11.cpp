@@ -1,13 +1,13 @@
-// Copyright (c) 2018-2020,  Zhirnov Andrey. For more information see 'LICENSE'
+// Copyright (c) Zhirnov Andrey. For more information see 'LICENSE'
 
-#include "Device.h"
+#include "TestDevice.h"
 
 /*
 =================================================
 	CompileShaders
 =================================================
 */
-static bool CompileShaders (Device &vulkan, OUT VkShaderModule &compShader)
+static bool CompileShaders (TestDevice &vulkan, OUT VkShaderModule &compShader)
 {
 	// create compute shader
 	{
@@ -48,7 +48,7 @@ void main()
 	CreatePipeline
 =================================================
 */
-static bool CreatePipeline (Device &vulkan, VkShaderModule compShader, vector<VkDescriptorSetLayout> dsLayouts,
+static bool CreatePipeline (TestDevice &vulkan, VkShaderModule compShader, Array<VkDescriptorSetLayout> dsLayouts,
 							OUT VkPipelineLayout &outPipelineLayout, OUT VkPipeline &outPipeline)
 {
 	// create pipeline layout
@@ -58,10 +58,10 @@ static bool CreatePipeline (Device &vulkan, VkShaderModule compShader, vector<Vk
 		info.setLayoutCount			= uint(dsLayouts.size());
 		info.pSetLayouts			= dsLayouts.data();
 		info.pushConstantRangeCount	= 0;
-		info.pPushConstantRanges	= nullptr;
+		info.pPushConstantRanges	= null;
 
-		VK_CHECK( vulkan.vkCreatePipelineLayout( vulkan.device, &info, nullptr, OUT &outPipelineLayout ));
-		vulkan.tempHandles.emplace_back( Device::EHandleType::PipelineLayout, uint64_t(outPipelineLayout) );
+		VK_CHECK_ERR( vulkan.vkCreatePipelineLayout( vulkan.GetVkDevice(), &info, null, OUT &outPipelineLayout ));
+		vulkan.tempHandles.emplace_back( TestDevice::EHandleType::PipelineLayout, ulong(outPipelineLayout) );
 	}
 
 	VkComputePipelineCreateInfo		info = {};
@@ -72,8 +72,8 @@ static bool CreatePipeline (Device &vulkan, VkShaderModule compShader, vector<Vk
 	info.stage.pName	= "main";
 	info.layout			= outPipelineLayout;
 
-	VK_CHECK( vulkan.vkCreateComputePipelines( vulkan.device, VK_NULL_HANDLE, 1, &info, nullptr, OUT &outPipeline ));
-	vulkan.tempHandles.emplace_back( Device::EHandleType::Pipeline, uint64_t(outPipeline) );
+	VK_CHECK_ERR( vulkan.vkCreateComputePipelines( vulkan.GetVkDevice(), Default, 1, &info, null, OUT &outPipeline ));
+	vulkan.tempHandles.emplace_back( TestDevice::EHandleType::Pipeline, ulong(outPipeline) );
 
 	return true;
 }
@@ -83,61 +83,13 @@ static bool CreatePipeline (Device &vulkan, VkShaderModule compShader, vector<Vk
 	ShaderTrace_Test11
 =================================================
 */
-extern bool ShaderTrace_Test11 (Device& vulkan)
+extern bool ShaderTrace_Test11 (TestDevice& vulkan)
 {	
 	// create image
 	VkImage			image;
 	VkImageView		image_view;
 	uint			width = 16, height = 16;
-	{
-		VkImageCreateInfo	info = {};
-		info.sType			= VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		info.flags			= 0;
-		info.imageType		= VK_IMAGE_TYPE_2D;
-		info.format			= VK_FORMAT_R8G8B8A8_UNORM;
-		info.extent			= { width, height, 1 };
-		info.mipLevels		= 1;
-		info.arrayLayers	= 1;
-		info.samples		= VK_SAMPLE_COUNT_1_BIT;
-		info.tiling			= VK_IMAGE_TILING_OPTIMAL;
-		info.usage			= VK_IMAGE_USAGE_STORAGE_BIT;
-		info.sharingMode	= VK_SHARING_MODE_EXCLUSIVE;
-		info.initialLayout	= VK_IMAGE_LAYOUT_UNDEFINED;
-
-		VK_CHECK( vulkan.vkCreateImage( vulkan.device, &info, nullptr, OUT &image ));
-		vulkan.tempHandles.emplace_back( Device::EHandleType::Image, uint64_t(image) );
-
-		VkMemoryRequirements	mem_req;
-		vulkan.vkGetImageMemoryRequirements( vulkan.device, image, OUT &mem_req );
-		
-		// allocate device local memory
-		VkMemoryAllocateInfo	alloc_info = {};
-		alloc_info.sType			= VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		alloc_info.allocationSize	= mem_req.size;
-		CHECK_ERR( vulkan.GetMemoryTypeIndex( mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, OUT alloc_info.memoryTypeIndex ));
-
-		VkDeviceMemory	image_mem;
-		VK_CHECK( vulkan.vkAllocateMemory( vulkan.device, &alloc_info, nullptr, OUT &image_mem ));
-		vulkan.tempHandles.emplace_back( Device::EHandleType::Memory, uint64_t(image_mem) );
-
-		VK_CHECK( vulkan.vkBindImageMemory( vulkan.device, image, image_mem, 0 ));
-	}
-
-	// create image view
-	{
-		VkImageViewCreateInfo	info = {};
-		info.sType				= VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		info.flags				= 0;
-		info.image				= image;
-		info.viewType			= VK_IMAGE_VIEW_TYPE_2D;
-		info.format				= VK_FORMAT_R8G8B8A8_UNORM;
-		info.components			= { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-		info.subresourceRange	= { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-
-		VK_CHECK( vulkan.vkCreateImageView( vulkan.device, &info, nullptr, OUT &image_view ));
-		vulkan.tempHandles.emplace_back( Device::EHandleType::ImageView, uint64_t(image_view) );
-	}
-
+	CHECK_ERR( vulkan.CreateStorageImage( VK_FORMAT_R8G8B8A8_UNORM, width, height, 0, OUT image, OUT image_view ));
 
 	// create pipeline
 	VkShaderModule	comp_shader;
@@ -160,10 +112,10 @@ extern bool ShaderTrace_Test11 (Device& vulkan)
 		info.bindingCount	= 1;
 		info.pBindings		= &binding;
 
-		VK_CHECK( vulkan.vkCreateDescriptorSetLayout( vulkan.device, &info, nullptr, OUT &ds1_layout ));
-		vulkan.tempHandles.emplace_back( Device::EHandleType::DescriptorSetLayout, uint64_t(ds1_layout) );
+		VK_CHECK_ERR( vulkan.vkCreateDescriptorSetLayout( vulkan.GetVkDevice(), &info, null, OUT &ds1_layout ));
+		vulkan.tempHandles.emplace_back( TestDevice::EHandleType::DescriptorSetLayout, ulong(ds1_layout) );
 	}
-	
+
 	// allocate descriptor set
 	{
 		VkDescriptorSetAllocateInfo		info = {};
@@ -172,7 +124,7 @@ extern bool ShaderTrace_Test11 (Device& vulkan)
 		info.descriptorSetCount	= 1;
 		info.pSetLayouts		= &ds1_layout;
 
-		VK_CHECK( vulkan.vkAllocateDescriptorSets( vulkan.device, &info, OUT &desc_set1 ));
+		VK_CHECK_ERR( vulkan.vkAllocateDescriptorSets( vulkan.GetVkDevice(), &info, OUT &desc_set1 ));
 	}
 
 	// update descriptor set
@@ -180,7 +132,7 @@ extern bool ShaderTrace_Test11 (Device& vulkan)
 		VkDescriptorImageInfo	desc_image	= {};
 		desc_image.imageView	= image_view;
 		desc_image.imageLayout	= VK_IMAGE_LAYOUT_GENERAL;
-		
+
 		VkWriteDescriptorSet	write	= {};
 		write.sType				= VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		write.dstSet			= desc_set1;
@@ -188,18 +140,18 @@ extern bool ShaderTrace_Test11 (Device& vulkan)
 		write.descriptorCount	= 1;
 		write.descriptorType	= VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		write.pImageInfo		= &desc_image;
-		
-		vulkan.vkUpdateDescriptorSets( vulkan.device, 1, &write, 0, nullptr );
+
+		vulkan.vkUpdateDescriptorSets( vulkan.GetVkDevice(), 1, &write, 0, null );
 	}
 
 	VkPipelineLayout	ppln_layout;
 	VkPipeline			pipeline;
 	CHECK_ERR( CreatePipeline( vulkan, comp_shader, {ds1_layout, ds2_layout}, OUT ppln_layout, OUT pipeline ));
-	
-	
+
+
 	// build command buffer
-	VkCommandBufferBeginInfo	begin = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr };
-	VK_CHECK( vulkan.vkBeginCommandBuffer( vulkan.cmdBuffer, &begin ));
+	VkCommandBufferBeginInfo	begin = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, null, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, null };
+	VK_CHECK_ERR( vulkan.vkBeginCommandBuffer( vulkan.cmdBuffer, &begin ));
 
 	// image layout undefined -> general
 	{
@@ -215,9 +167,9 @@ extern bool ShaderTrace_Test11 (Device& vulkan)
 		barrier.subresourceRange	= {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
 
 		vulkan.vkCmdPipelineBarrier( vulkan.cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
-									 0, nullptr, 0, nullptr, 1, &barrier );
+									 0, null, 0, null, 1, &barrier );
 	}
-	
+
 	// setup storage buffer
 	{
 		const uint	data[] = { ~0u, ~0u, ~0u };	// don't select anything, trace recording will be enabled by 'dbg_EnableTraceRecording' function in shader
@@ -225,29 +177,29 @@ extern bool ShaderTrace_Test11 (Device& vulkan)
 		vulkan.vkCmdFillBuffer( vulkan.cmdBuffer, vulkan.debugOutputBuf, sizeof(data), VK_WHOLE_SIZE, 0 );
 		vulkan.vkCmdUpdateBuffer( vulkan.cmdBuffer, vulkan.debugOutputBuf, 0, sizeof(data), data );
 	}
-	
+
 	// debug output storage read/write after write
 	{
 		VkBufferMemoryBarrier	barrier = {};
 		barrier.sType			= VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 		barrier.srcAccessMask	= VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask	= VK_ACCESS_SHADER_WRITE_BIT;
+		barrier.dstAccessMask	= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 		barrier.buffer			= vulkan.debugOutputBuf;
 		barrier.offset			= 0;
 		barrier.size			= VK_WHOLE_SIZE;
 		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		
+
 		vulkan.vkCmdPipelineBarrier( vulkan.cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
-									 0, nullptr, 1, &barrier, 0, nullptr);
+									 0, null, 1, &barrier, 0, null);
 	}
-	
+
 	// dispatch
 	{
 		vulkan.vkCmdBindPipeline( vulkan.cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline );
-		vulkan.vkCmdBindDescriptorSets( vulkan.cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, ppln_layout, 0, 1, &desc_set1, 0, nullptr );
-		vulkan.vkCmdBindDescriptorSets( vulkan.cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, ppln_layout, 1, 1, &desc_set2, 0, nullptr );
-	
+		vulkan.vkCmdBindDescriptorSets( vulkan.cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, ppln_layout, 0, 1, &desc_set1, 0, null );
+		vulkan.vkCmdBindDescriptorSets( vulkan.cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, ppln_layout, 1, 1, &desc_set2, 0, null );
+
 		vulkan.vkCmdDispatch( vulkan.cmdBuffer, width/4, height/4, 1 );
 	}
 
@@ -262,11 +214,11 @@ extern bool ShaderTrace_Test11 (Device& vulkan)
 		barrier.size			= VK_WHOLE_SIZE;
 		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		
+
 		vulkan.vkCmdPipelineBarrier( vulkan.cmdBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
-									 0, nullptr, 1, &barrier, 0, nullptr);
+									 0, null, 1, &barrier, 0, null);
 	}
-	
+
 	// copy shader debug output into host visible memory
 	{
 		VkBufferCopy	region = {};
@@ -277,8 +229,8 @@ extern bool ShaderTrace_Test11 (Device& vulkan)
 		vulkan.vkCmdCopyBuffer( vulkan.cmdBuffer, vulkan.debugOutputBuf, vulkan.readBackBuf, 1, &region );
 	}
 
-	VK_CHECK( vulkan.vkEndCommandBuffer( vulkan.cmdBuffer ));
-	
+	VK_CHECK_ERR( vulkan.vkEndCommandBuffer( vulkan.cmdBuffer ));
+
 	// submit commands and wait
 	{
 		VkSubmitInfo	submit = {};
@@ -286,14 +238,14 @@ extern bool ShaderTrace_Test11 (Device& vulkan)
 		submit.commandBufferCount	= 1;
 		submit.pCommandBuffers		= &vulkan.cmdBuffer;
 
-		VK_CHECK( vulkan.vkQueueSubmit( vulkan.queue, 1, &submit, VK_NULL_HANDLE ));
-		VK_CHECK( vulkan.vkQueueWaitIdle( vulkan.queue ));
+		VK_CHECK_ERR( vulkan.vkQueueSubmit( vulkan.GetVkQueue(), 1, &submit, Default ));
+		VK_CHECK_ERR( vulkan.vkQueueWaitIdle( vulkan.GetVkQueue() ));
 	}
 
 	CHECK_ERR( vulkan.TestDebugTraceOutput( {comp_shader}, "ShaderTrace_Test11.txt" ));
-	
+
 	vulkan.FreeTempHandles();
-	
+
 	TEST_PASSED();
 	return true;
 }

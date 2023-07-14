@@ -1,13 +1,13 @@
-// Copyright (c) 2018-2020,  Zhirnov Andrey. For more information see 'LICENSE'
+// Copyright (c) Zhirnov Andrey. For more information see 'LICENSE'
 
-#include "Device.h"
+#include "TestDevice.h"
 
 /*
 =================================================
 	CompileShaders
 =================================================
 */
-static bool CompileShaders (Device &vulkan, OUT VkShaderModule &vertShader, OUT VkShaderModule &fragShader)
+static bool CompileShaders (TestDevice &vulkan, OUT VkShaderModule &vertShader, OUT VkShaderModule &fragShader)
 {
 	// create vertex shader
 	{
@@ -82,7 +82,7 @@ void main ()
 	ShaderPerf_Test1
 =================================================
 */
-extern bool ShaderPerf_Test1 (Device& vulkan)
+extern bool ShaderPerf_Test1 (TestDevice& vulkan)
 {
 	// create renderpass and framebuffer
 	uint			width = 16, height = 16;
@@ -107,7 +107,7 @@ extern bool ShaderPerf_Test1 (Device& vulkan)
 
 
 	// build command buffer
-	VkCommandBufferBeginInfo	begin = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr };
+	VkCommandBufferBeginInfo	begin = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, null, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, null };
 	VK_CHECK( vulkan.vkBeginCommandBuffer( vulkan.cmdBuffer, &begin ));
 
 	// image layout undefined -> color_attachment
@@ -124,9 +124,9 @@ extern bool ShaderPerf_Test1 (Device& vulkan)
 		barrier.subresourceRange	= {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
 
 		vulkan.vkCmdPipelineBarrier( vulkan.cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0,
-									 0, nullptr, 0, nullptr, 1, &barrier);
+									 0, null, 0, null, 1, &barrier);
 	}
-	
+
 	// setup storage buffer
 	{
 		const uint	data[] = { width/2, height/2 };		// selected pixel
@@ -140,15 +140,15 @@ extern bool ShaderPerf_Test1 (Device& vulkan)
 		VkBufferMemoryBarrier	barrier = {};
 		barrier.sType			= VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 		barrier.srcAccessMask	= VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask	= VK_ACCESS_SHADER_WRITE_BIT;
+		barrier.dstAccessMask	= VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 		barrier.buffer			= vulkan.debugOutputBuf;
 		barrier.offset			= 0;
 		barrier.size			= VK_WHOLE_SIZE;
 		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		
+
 		vulkan.vkCmdPipelineBarrier( vulkan.cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-									 0, nullptr, 1, &barrier, 0, nullptr);
+									 0, null, 1, &barrier, 0, null);
 	}
 
 	// begin render pass
@@ -164,10 +164,10 @@ extern bool ShaderPerf_Test1 (Device& vulkan)
 
 		vulkan.vkCmdBeginRenderPass( vulkan.cmdBuffer, &begin_rp, VK_SUBPASS_CONTENTS_INLINE );
 	}
-			
+
 	vulkan.vkCmdBindPipeline( vulkan.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline );
-	vulkan.vkCmdBindDescriptorSets( vulkan.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ppln_layout, 0, 1, &desc_set, 0, nullptr );
-	
+	vulkan.vkCmdBindDescriptorSets( vulkan.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ppln_layout, 0, 1, &desc_set, 0, null );
+
 	// set dynamic states
 	{
 		VkViewport	viewport = {};
@@ -182,9 +182,9 @@ extern bool ShaderPerf_Test1 (Device& vulkan)
 		VkRect2D	scissor_rect = { {0,0}, {width, height} };
 		vulkan.vkCmdSetScissor( vulkan.cmdBuffer, 0, 1, &scissor_rect );
 	}
-			
+
 	vulkan.vkCmdDraw( vulkan.cmdBuffer, 5, 1, 0, 0 );
-			
+
 	vulkan.vkCmdEndRenderPass( vulkan.cmdBuffer );
 
 	// debug output storage read after write
@@ -198,9 +198,9 @@ extern bool ShaderPerf_Test1 (Device& vulkan)
 		barrier.size			= VK_WHOLE_SIZE;
 		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		
+
 		vulkan.vkCmdPipelineBarrier( vulkan.cmdBuffer, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
-									 0, nullptr, 1, &barrier, 0, nullptr);
+									 0, null, 1, &barrier, 0, null);
 	}
 
 	// copy shader debug output into host visible memory
@@ -213,7 +213,7 @@ extern bool ShaderPerf_Test1 (Device& vulkan)
 		vulkan.vkCmdCopyBuffer( vulkan.cmdBuffer, vulkan.debugOutputBuf, vulkan.readBackBuf, 1, &region );
 	}
 
-	VK_CHECK( vulkan.vkEndCommandBuffer( vulkan.cmdBuffer ));
+	VK_CHECK_ERR( vulkan.vkEndCommandBuffer( vulkan.cmdBuffer ));
 
 
 	// submit commands and wait
@@ -223,17 +223,17 @@ extern bool ShaderPerf_Test1 (Device& vulkan)
 		submit.commandBufferCount	= 1;
 		submit.pCommandBuffers		= &vulkan.cmdBuffer;
 
-		VK_CHECK( vulkan.vkQueueSubmit( vulkan.queue, 1, &submit, VK_NULL_HANDLE ));
-		VK_CHECK( vulkan.vkQueueWaitIdle( vulkan.queue ));
+		VK_CHECK_ERR( vulkan.vkQueueSubmit( vulkan.GetVkQueue(), 1, &submit, Default ));
+		VK_CHECK_ERR( vulkan.vkQueueWaitIdle( vulkan.GetVkQueue() ));
 	}
-	
+
 	CHECK_ERR( vulkan.TestPerformanceOutput(
 					{frag_shader}, {
 					"float Fn2 (int i, float x)"s,
 					"float Fn1 (const int i, in vec2 k)"s,
 					"void main ()"s
 					}));
-	
+
 	vulkan.FreeTempHandles();
 
 	TEST_PASSED();

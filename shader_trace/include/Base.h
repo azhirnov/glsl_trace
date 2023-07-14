@@ -14,7 +14,7 @@
 #define null			nullptr
 #define STATIC_ASSERT	static_assert
 
-namespace AE::PipelineCompiler
+namespace AE
 {
 	using uint			= uint32_t;
 	using slong			= int64_t;
@@ -47,6 +47,9 @@ namespace AE::PipelineCompiler
 		explicit Bytes (ulong val) : _value{val} {}
 
 		explicit operator ulong ()	const	{ return _value; }
+
+		template <typename T>
+		ND_ friend T*  operator + (T* lhs, Bytes rhs)	{ return (T*)(usize(lhs) + rhs._value); }
 	};
 	
 
